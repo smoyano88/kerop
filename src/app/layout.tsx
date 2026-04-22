@@ -44,6 +44,7 @@ export default function RootLayout({
               <Link href="/" className="nav-link">Menú</Link>
               <Link href="/tattoo" className="nav-link">Tattoo Studio</Link>
               <Link href="/eventos" className="nav-link">Speed Dating</Link>
+              <Link href="/admin" className="nav-link" style={{ color: 'var(--neon-cyan)' }}>Admin</Link>
             </div>
           </div>
         </nav>

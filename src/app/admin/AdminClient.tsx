@@ -534,7 +534,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
 
                   {total > 0 && (
                     <>
-                      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: isExpanded ? '1rem' : 0 }}>
+                      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: isExpanded ? '1rem' : 0 }}>
                         <button
                           onClick={() => setExpandedEvent(isExpanded ? null : ev.id)}
                           style={{ background: 'none', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-muted)', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', transition: 'all 0.3s' }}
@@ -553,7 +553,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
                       </div>
 
                       {isExpanded && (
-                        <div style={{ borderRadius: '10px', overflowX: 'auto', border: '1px solid rgba(255,255,255,0.07)' }}>
+                        <div style={{ borderRadius: '10px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', border: '1px solid rgba(255,255,255,0.07)' }}>
                           <table style={{ width: '100%', minWidth: '700px', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
                             <thead>
                               <tr style={{ background: 'rgba(255,255,255,0.05)' }}>
