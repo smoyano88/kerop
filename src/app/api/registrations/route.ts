@@ -83,38 +83,46 @@ export async function POST(request: Request) {
 
     // 2. Crear sesión de Stripe (precio más alto para cubrir comisión)
     if (!process.env.STRIPE_SECRET_KEY) {
-      return NextResponse.json({ error: 'STRIPE_SECRET_KEY no configurado en .env' }, { status: 500 });
+      // Rollback database record
+      await prisma.registration.delete({ where: { id: registration.id } });
+      return NextResponse.json({ error: 'STRIPE_SECRET_KEY no configurado en .env. Pago cancelado.' }, { status: 500 });
     }
 
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price_data: {
-            currency: 'uyu',
-            product_data: {
-              name: `Entrada Kerop Speed Dating - ${eventName}`,
-              description: `Participante: ${firstName} ${lastName}`,
+    try {
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price_data: {
+              currency: 'uyu',
+              product_data: {
+                name: `Entrada Kerop Speed Dating - ${eventName}`,
+                description: `Participante: ${firstName} ${lastName}`,
+              },
+              unit_amount: 85000, // $850 UYU (incluye comisión Stripe)
             },
-            unit_amount: 85000, // $850 UYU (incluye comisión Stripe)
+            quantity: 1,
           },
-          quantity: 1,
-        },
-      ],
-      mode: 'payment',
-      client_reference_id: registration.id,
-      success_url: `${baseURL}/eventos?pago=exitoso&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseURL}/eventos?pago=cancelado`,
-    });
+        ],
+        mode: 'payment',
+        client_reference_id: registration.id,
+        success_url: `${baseURL}/eventos?pago=exitoso&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseURL}/eventos?pago=cancelado`,
+      });
 
-    console.log("✅ Sesión Stripe creada:", session.id);
+      console.log("✅ Sesión Stripe creada:", session.id);
 
-    return NextResponse.json({ 
-      registration,
-      init_point: session.url,
-      paymentMethod: 'stripe'
-    });
-
+      return NextResponse.json({ 
+        registration,
+        init_point: session.url,
+        paymentMethod: 'stripe'
+      });
+    } catch (stripeError) {
+      console.error("Error de Stripe - haciendo rollback:", stripeError);
+      // Rollback the DB
+      await prisma.registration.delete({ where: { id: registration.id } });
+      return NextResponse.json({ error: 'Error al conectar con la pasarela de pagos. Por favor intenta con Transferencia.' }, { status: 500 });
+    }
   } catch (error) {
     console.error("Error Registrations POST:", error);
     return NextResponse.json({ error: 'Error procesando el registro' }, { status: 500 });

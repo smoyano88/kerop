@@ -39,7 +39,13 @@ export default function Home() {
           <div>
             {/* Logo */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginBottom: '2rem' }}>
-              <Image src="/img/logo.png" alt="Kerop logo" width={80} height={80} style={{ borderRadius: '50%' }} />
+              <div style={{ position: 'relative' }}>
+                <Image src="/img/logo.png" alt="Kerop logo" width={80} height={80} style={{ borderRadius: '50%' }} />
+                {/* Avatar Mariana sutil destacado */}
+                <div style={{ position: 'absolute', bottom: '-8px', right: '-12px', width: '40px', height: '40px', borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--neon-pink)', boxShadow: '0 4px 10px rgba(0,0,0,0.5)', zIndex: 2 }}>
+                  <Image src="/img/mariana-speed.png" alt="Host" fill style={{ objectFit: 'cover' }} />
+                </div>
+              </div>
               <div>
                 <p style={{ color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '4px', fontSize: '0.8rem' }}>Pérez Castellano 1495 · Ciudad Vieja</p>
                 <p style={{ color: 'var(--neon-pink)', fontSize: '0.9rem', marginTop: '0.25rem' }}>Café & Tattoo · Mar–Dom</p>
@@ -61,10 +67,6 @@ export default function Home() {
 
           {/* Quick Info Card */}
           <div className="glass-card hero-card" style={{ textAlign: 'center', position: 'relative' }}>
-            {/* Avatar Mariana sutil */}
-            <div style={{ position: 'absolute', top: '-30px', right: '-30px', width: '80px', height: '80px', borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--neon-pink)', boxShadow: '0 10px 20px rgba(0,0,0,0.5)', zIndex: 2 }}>
-              <Image src="/img/mariana-speed.png" alt="Host" fill style={{ objectFit: 'cover' }} />
-            </div>
 
             <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>☕</div>
             <h3 style={{ fontSize: '1.3rem', marginBottom: '1rem' }}>Horarios</h3>
