@@ -1,0 +1,39 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Event {
+  id              String         @id @default(uuid())
+  type            String
+  date            DateTime
+  ageRange        String
+  drinksAvailable String
+  spotsPerGender  Int            @default(8)
+  stripeEnabled   Boolean        @default(true)
+  registrations   Registration[]
+  createdAt       DateTime       @default(now())
+}
+
+model Registration {
+  id            String   @id @default(uuid())
+  firstName     String
+  lastName      String
+  gender        String   @default("Mujer")
+  selectedDrink String
+  eventId       String
+  paid          Boolean  @default(false)
+  paymentMethod String   @default("stripe")
+  paymentId     String?
+  event         Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+}
