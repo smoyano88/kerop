@@ -553,8 +553,8 @@ export default function AdminClient({ events }: { events: Event[] }) {
                       </div>
 
                       {isExpanded && (
-                        <div style={{ borderRadius: '10px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', border: '1px solid rgba(255,255,255,0.07)' }}>
-                          <table style={{ width: '100%', minWidth: '700px', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+                        <div style={{ width: '100%', maxWidth: 'calc(100vw - 3rem)', borderRadius: '10px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', border: '1px solid rgba(255,255,255,0.07)' }}>
+                          <table style={{ minWidth: '700px', width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
                             <thead>
                               <tr style={{ background: 'rgba(255,255,255,0.05)' }}>
                                 <th style={{ padding: '0.75rem 1rem', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500 }}>#</th>
