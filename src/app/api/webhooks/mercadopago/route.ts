@@ -49,6 +49,36 @@ export async function POST(request: Request) {
             },
           });
           console.log(`✅ Webhook: Cupo confirmado para ${existing.firstName} ${existing.lastName} (${registrationId})`);
+
+          // Notificar confirmación de pago
+          try {
+            const eventInfo = await prisma.event.findUnique({ where: { id: existing.eventId } });
+            if (eventInfo) {
+              const eventDateStr = new Date(eventInfo.date).toLocaleDateString('es-UY');
+              const { sendEmail, getAdminNotificationHtml } = await import('@/lib/email');
+              const { sendWhatsApp, getAdminWhatsAppText } = await import('@/lib/whatsapp');
+              const { sendPushNotification } = await import('@/lib/push');
+
+              sendPushNotification(
+                'Pago Confirmado (MP) 💰',
+                `${existing.firstName} ${existing.lastName} pagó su entrada para ${eventInfo.type}.`
+              );
+
+              sendEmail(
+                'smoyano1988@gmail.com',
+                `Pago Confirmado - ${eventInfo.type}`,
+                getAdminNotificationHtml(existing.firstName, existing.lastName, eventInfo.type, eventDateStr, existing.email, existing.phone, 'MercadoPago', true)
+              );
+
+              sendWhatsApp(
+                '+598097183275',
+                getAdminWhatsAppText(existing.firstName, existing.lastName, eventInfo.type, eventDateStr, existing.email, existing.phone, 'MercadoPago', true)
+              );
+            }
+          } catch (notifError) {
+            console.error('Error enviando notificaciones de pago:', notifError);
+          }
+
         } else if (existing?.paid) {
           console.log(`ℹ️  Webhook: Pago ya estaba confirmado para ${registrationId}`);
         }

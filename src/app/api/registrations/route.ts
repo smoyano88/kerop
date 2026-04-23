@@ -43,6 +43,8 @@ export async function POST(request: Request) {
       selectedDrink,
       eventId,
       paymentMethod,
+      email,
+      phone,
     } = body;
 
     // 0. Validar Cupos (Backend Strict Check)
@@ -109,8 +111,44 @@ export async function POST(request: Request) {
       "http://localhost:3000";
     const isLocalhost = baseURL.includes("localhost") || baseURL.includes("127.0.0.1");
 
-    // Si eligió transferencia, no crear sesión de MP
+    const eventDateStr = new Date(event.date).toLocaleDateString('es-UY');
+
+    // Notificaciones de Registro para Transferencia
     if (paymentMethod === "transfer") {
+      const { sendEmail, getRegistrationEmailHtml, getAdminNotificationHtml } = await import('@/lib/email');
+      const { sendWhatsApp, getRegistrationWhatsAppText, getAdminWhatsAppText } = await import('@/lib/whatsapp');
+      const { sendPushNotification } = await import('@/lib/push');
+
+      // 1. Notificar al Admin
+      sendPushNotification(
+        'Nuevo Registro (Transferencia)', 
+        `${firstName} ${lastName} se registró en ${event.type}. Esperando pago.`
+      );
+      sendEmail(
+        'smoyano1988@gmail.com',
+        `Nuevo Registro Pendiente - ${event.type}`,
+        getAdminNotificationHtml(firstName, lastName, event.type, eventDateStr, email, phone, 'Transferencia', false)
+      );
+      sendWhatsApp(
+        '+598097183275',
+        getAdminWhatsAppText(firstName, lastName, event.type, eventDateStr, email, phone, 'Transferencia', false)
+      );
+
+      // 2. Notificar al Usuario
+      if (email) {
+        sendEmail(
+          email,
+          `¡Registro Iniciado en Kerop! - ${event.type}`,
+          getRegistrationEmailHtml(firstName, event.type, eventDateStr, 'transfer', event.price)
+        );
+      }
+      if (phone) {
+        sendWhatsApp(
+          phone,
+          getRegistrationWhatsAppText(firstName, event.type, eventDateStr, 'transfer', event.price)
+        );
+      }
+
       return NextResponse.json({
         registration,
         paymentMethod: "transfer",
@@ -167,6 +205,41 @@ export async function POST(request: Request) {
         "sandbox?",
         initPoint !== response.init_point,
       );
+
+      const eventDateStr = new Date(event.date).toLocaleDateString('es-UY');
+      const { sendEmail, getRegistrationEmailHtml, getAdminNotificationHtml } = await import('@/lib/email');
+      const { sendWhatsApp, getRegistrationWhatsAppText, getAdminWhatsAppText } = await import('@/lib/whatsapp');
+      const { sendPushNotification } = await import('@/lib/push');
+
+      // 1. Notificar al Admin (Registro pendiente)
+      sendPushNotification(
+        'Nuevo Registro (MP)', 
+        `${firstName} ${lastName} se registró en ${event.type}. Esperando pago MP.`
+      );
+      sendEmail(
+        'smoyano1988@gmail.com',
+        `Nuevo Registro (A Pagar) - ${event.type}`,
+        getAdminNotificationHtml(firstName, lastName, event.type, eventDateStr, email, phone, 'MercadoPago', false)
+      );
+      sendWhatsApp(
+        '+598097183275',
+        getAdminWhatsAppText(firstName, lastName, event.type, eventDateStr, email, phone, 'MercadoPago', false)
+      );
+
+      // 2. Notificar al Usuario con link de pago
+      if (email) {
+        sendEmail(
+          email,
+          `Completa tu pago - Kerop ${event.type}`,
+          getRegistrationEmailHtml(firstName, event.type, eventDateStr, 'mercadopago', event.price, initPoint)
+        );
+      }
+      if (phone) {
+        sendWhatsApp(
+          phone,
+          getRegistrationWhatsAppText(firstName, event.type, eventDateStr, 'mercadopago', event.price, initPoint)
+        );
+      }
 
       return NextResponse.json({
         registration,

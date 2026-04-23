@@ -205,9 +205,20 @@ function RegistrationModal({ event, onClose }: { event: Event, onClose: () => vo
     setError('');
 
     const formData = new FormData(e.currentTarget);
+    const email = formData.get('email');
+    const phone = formData.get('phone');
+
+    if (!email && !phone) {
+      setError('Por favor ingresá un Email o un Celular para poder contactarte.');
+      setLoading(false);
+      return;
+    }
+
     const data = {
       firstName: formData.get('firstName'),
       lastName: formData.get('lastName'),
+      email: email || null,
+      phone: phone || null,
       gender: formData.get('gender'),
       selectedDrink: formData.get('selectedDrink'),
       eventId: event.id,
@@ -319,6 +330,20 @@ function RegistrationModal({ event, onClose }: { event: Event, onClose: () => vo
               <div style={{ flex: 1 }}>
                 <label className="input-label">Apellido</label>
                 <input type="text" name="lastName" required className="input-field" placeholder="Pérez" />
+              </div>
+            </div>
+
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem', textAlign: 'center' }}>
+              Completá al menos un medio de contacto para enviarte los detalles.
+            </p>
+            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: '200px' }}>
+                <label className="input-label">Email</label>
+                <input type="email" name="email" className="input-field" placeholder="tu@email.com" />
+              </div>
+              <div style={{ flex: 1, minWidth: '200px' }}>
+                <label className="input-label">Celular (WhatsApp)</label>
+                <input type="tel" name="phone" className="input-field" placeholder="+598 9X XXX XXX" defaultValue="+598" />
               </div>
             </div>
 

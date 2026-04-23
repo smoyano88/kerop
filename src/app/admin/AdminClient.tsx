@@ -212,6 +212,35 @@ export default function AdminClient({ events }: { events: Event[] }) {
     }
   };
 
+  const subscribeToPush = async () => {
+    try {
+      setLoading(true);
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      const publicVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      if (!publicVapidKey) {
+        throw new Error('No hay VAPID public key configurada');
+      }
+
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: publicVapidKey
+      });
+
+      const res = await fetch('/api/push-subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscription, password: currentAdminPassword })
+      });
+
+      if (!res.ok) throw new Error('Error al guardar suscripción');
+      showSuccess('✅ Notificaciones activadas en este dispositivo.');
+    } catch (err: any) {
+      setError(err.message || 'No se pudieron activar las notificaciones');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCreateEvent = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
@@ -832,6 +861,21 @@ export default function AdminClient({ events }: { events: Event[] }) {
                 {loading ? 'Guardando...' : 'Actualizar Contraseña'}
               </button>
             </form>
+
+            <div style={{ marginTop: '3rem', paddingTop: '2rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+              <h4 style={{ color: 'var(--neon-cyan)', marginBottom: '1rem' }}>Notificaciones (Celular o PC)</h4>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1rem', lineHeight: 1.5 }}>
+                Recibí avisos en este dispositivo cuando alguien se registre o pague un evento. Tenés que darle permisos al navegador si te lo pide.
+              </p>
+              <button 
+                onClick={subscribeToPush} 
+                disabled={loading}
+                className="btn btn-outline" 
+                style={{ width: '100%', borderColor: 'var(--neon-cyan)', color: 'var(--neon-cyan)' }}
+              >
+                {loading ? 'Procesando...' : '🔔 Activar notificaciones acá'}
+              </button>
+            </div>
           </div>
         )}
       </div>

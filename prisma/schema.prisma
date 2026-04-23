@@ -29,11 +29,13 @@ model Registration {
   id            String   @id @default(uuid())
   firstName     String
   lastName      String
-  gender        String   @default("Mujer")
+  gender        String
+  email         String?
+  phone         String?
   selectedDrink String
   eventId       String
   paid          Boolean  @default(false)
-  paymentMethod String   @default("mercadopago")
+  paymentMethod String?
   paymentId     String?
   event         Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   createdAt     DateTime @default(now())
@@ -42,4 +44,12 @@ model Registration {
 model Setting {
   key   String @id
   value String
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
 }
