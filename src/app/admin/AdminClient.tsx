@@ -613,8 +613,17 @@ export default function AdminClient({ events }: { events: Event[] }) {
                   <input type="date" name="date" required className="input-field" />
                 </div>
                 <div>
-                  <label className="input-label">Hora</label>
-                  <input type="time" name="time" required className="input-field" defaultValue="20:00" />
+                  <label className="input-label">Hora (Formato 24hs)</label>
+                  <input 
+                    type="text" 
+                    name="time" 
+                    required 
+                    className="input-field" 
+                    defaultValue="20:00" 
+                    placeholder="20:00" 
+                    pattern="^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$"
+                    title="Formato 24 horas, ej: 20:00"
+                  />
                 </div>
               </div>
 

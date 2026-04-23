@@ -68,21 +68,27 @@ export default function EventListClient({ events }: { events: Event[] }) {
   return (
     <>
       <div className="grid-3">
-        {events.map((event) => {
-          const isHH = event.type === 'Ellos y Ellos';
-          const isMM = event.type === 'Ellas y Ellas';
-          
-          const totalCapacityMen = isHH ? event.spotsPerGender * 2 : event.spotsPerGender;
-          const totalCapacityWomen = isMM ? event.spotsPerGender * 2 : event.spotsPerGender;
+        {(() => {
+          const processedEvents = events.map(event => {
+            const isHH = event.type === 'Ellos y Ellos';
+            const isMM = event.type === 'Ellas y Ellas';
+            const totalCapacityMen = isHH ? event.spotsPerGender * 2 : event.spotsPerGender;
+            const totalCapacityWomen = isMM ? event.spotsPerGender * 2 : event.spotsPerGender;
+            const registeredMen = event.registrations?.filter(r => r.gender === 'Hombre').length || 0;
+            const registeredWomen = event.registrations?.filter(r => r.gender === 'Mujer').length || 0;
+            const availableMen = Math.max(0, totalCapacityMen - registeredMen);
+            const availableWomen = Math.max(0, totalCapacityWomen - registeredWomen);
+            const isSoldOut = isHH ? availableMen === 0 : isMM ? availableWomen === 0 : (availableMen === 0 && availableWomen === 0);
+            return { ...event, isSoldOut, isHH, isMM, availableMen, availableWomen };
+          });
 
-          const registeredMen = event.registrations?.filter(r => r.gender === 'Hombre').length || 0;
-          const registeredWomen = event.registrations?.filter(r => r.gender === 'Mujer').length || 0;
-          
-          const availableMen = Math.max(0, totalCapacityMen - registeredMen);
-          const availableWomen = Math.max(0, totalCapacityWomen - registeredWomen);
-          
-          // Sold out depends on the event's target audience
-          const isSoldOut = isHH ? availableMen === 0 : isMM ? availableWomen === 0 : (availableMen === 0 && availableWomen === 0);
+          const sortedEvents = processedEvents.sort((a, b) => {
+            if (a.isSoldOut !== b.isSoldOut) return a.isSoldOut ? 1 : -1;
+            return new Date(a.date).getTime() - new Date(b.date).getTime();
+          });
+
+          return sortedEvents.map((event) => {
+            const { isSoldOut, isHH, isMM, availableMen, availableWomen } = event;
 
           return (
           <div key={event.id} className="glass-card" style={{ display: 'flex', flexDirection: 'column' }}>
@@ -146,7 +152,9 @@ export default function EventListClient({ events }: { events: Event[] }) {
               </button>
             )}
           </div>
-        )})}
+          );
+        });
+        })()}
       </div>
 
       {selectedEvent && (
