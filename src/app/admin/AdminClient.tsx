@@ -45,6 +45,7 @@ interface Event {
   drinksAvailable: string;
   spotsPerGender: number;
   mpEnabled: boolean;
+  price: number;
   registrations: Registration[];
 }
 
@@ -231,6 +232,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
       ageRange: formData.get('ageRange'),
       spotsPerGender: formData.get('spotsPerGender'),
       mpEnabled: formData.get('mpEnabled') === 'on',
+      price: formData.get('price'),
       drinksAvailable: selectedDrinks.join(', '),
       password: currentAdminPassword,
     };
@@ -440,6 +442,11 @@ export default function AdminClient({ events }: { events: Event[] }) {
                           <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '0.3rem' }}>Rango Etario</div>
                           <div style={{ fontWeight: 600, color: 'white' }}>{ev.ageRange}</div>
                         </div>
+
+                        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                          <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '0.3rem' }}>Precio</div>
+                          <div style={{ fontWeight: 600, color: 'white' }}>${ev.price || 850}</div>
+                        </div>
                         
                         {!isMM && (
                           <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
@@ -606,8 +613,17 @@ export default function AdminClient({ events }: { events: Event[] }) {
                   <input type="date" name="date" required className="input-field" />
                 </div>
                 <div>
-                  <label className="input-label">Hora</label>
-                  <input type="time" name="time" required className="input-field" defaultValue="20:00" />
+                  <label className="input-label">Hora (Formato 24hs)</label>
+                  <input 
+                    type="text" 
+                    name="time" 
+                    required 
+                    className="input-field" 
+                    defaultValue="20:00" 
+                    placeholder="20:00" 
+                    pattern="^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$"
+                    title="Formato 24 horas, ej: 20:00"
+                  />
                 </div>
               </div>
 
@@ -619,6 +635,16 @@ export default function AdminClient({ events }: { events: Event[] }) {
                 <div>
                   <label className="input-label">Cupos por Género</label>
                   <input type="number" name="spotsPerGender" required className="input-field" defaultValue="8" min="1" max="100" />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
+                <div>
+                  <label className="input-label">Precio del Evento (UYU)</label>
+                  <input type="number" name="price" required className="input-field" defaultValue="20" min="10" />
+                  <p style={{ color: 'gray', fontSize: '0.75rem', marginTop: '0.3rem' }}>
+                    * Para pruebas con MercadoPago, el monto mínimo aceptado suele ser 20 UYU.
+                  </p>
                 </div>
               </div>
 
