@@ -43,7 +43,7 @@ interface Event {
   ageRange: string;
   drinksAvailable: string;
   spotsPerGender: number;
-  stripeEnabled: boolean;
+  mpEnabled: boolean;
   registrations: Registration[];
 }
 
@@ -174,7 +174,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
       time: formData.get('time'),
       ageRange: formData.get('ageRange'),
       spotsPerGender: formData.get('spotsPerGender'),
-      stripeEnabled: formData.get('stripeEnabled') === 'on',
+      mpEnabled: formData.get('mpEnabled') === 'on',
       drinksAvailable: selectedDrinks.join(', '),
       password: 'Kerop2024',
     };
@@ -285,10 +285,10 @@ export default function AdminClient({ events }: { events: Event[] }) {
 
           <div style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
             <label className="input-label" style={{ marginBottom: '0.5rem', display: 'block' }}>Métodos de Pago</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <input type="checkbox" name="stripeEnabled" id="stripeEnabled" defaultChecked style={{ width: '1.2rem', height: '1.2rem', accentColor: 'var(--neon-pink)' }} />
-              <label htmlFor="stripeEnabled" style={{ color: 'var(--text-muted)', fontSize: '0.9rem', cursor: 'pointer' }}>
-                Habilitar opción de pago con <span style={{ color: 'var(--neon-pink)', fontWeight: 600 }}>Tarjeta (Stripe)</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <input type="checkbox" name="mpEnabled" id="mpEnabled" defaultChecked style={{ width: '1.2rem', height: '1.2rem', accentColor: 'var(--neon-cyan)' }} />
+              <label htmlFor="mpEnabled" style={{ color: 'var(--text-muted)', fontSize: '0.9rem', cursor: 'pointer' }}>
+                Habilitar pagos online (Mercado Pago)
               </label>
             </div>
             <p style={{ color: 'gray', fontSize: '0.75rem', marginTop: '0.5rem', fontStyle: 'italic' }}>
@@ -488,16 +488,16 @@ export default function AdminClient({ events }: { events: Event[] }) {
                     {!isMM && (
                       <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
                         <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '0.3rem' }}>{isHH ? 'Cupos Totales' : 'Cupos Hombres'}</div>
-                        <div style={{ fontWeight: 600, color: 'var(--neon-green)' }}>{Math.max(0, totalSpotsMen - registeredMen)} disp. <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>(de {totalSpotsMen})</span></div>
-                        <div style={{ fontSize: '0.75rem', color: 'gray', marginTop: '0.2rem' }}>Pagos: {paidMen} · Inscriptos: {registeredMen}</div>
+                        <div style={{ fontWeight: 600, color: 'var(--neon-green)' }}>{Math.max(0, totalSpotsMen - paidMen)} disp. <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>(de {totalSpotsMen})</span></div>
+                        <div style={{ fontSize: '0.75rem', color: 'gray', marginTop: '0.2rem' }}>Pagos: {paidMen} · Pendientes: {registeredMen - paidMen}</div>
                       </div>
                     )}
 
                     {!isHH && (
                       <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
                         <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '0.3rem' }}>{isMM ? 'Cupos Totales' : 'Cupos Mujeres'}</div>
-                        <div style={{ fontWeight: 600, color: 'var(--neon-green)' }}>{Math.max(0, totalSpotsWomen - registeredWomen)} disp. <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>(de {totalSpotsWomen})</span></div>
-                        <div style={{ fontSize: '0.75rem', color: 'gray', marginTop: '0.2rem' }}>Pagos: {paidWomen} · Inscriptas: {registeredWomen}</div>
+                        <div style={{ fontWeight: 600, color: 'var(--neon-green)' }}>{Math.max(0, totalSpotsWomen - paidWomen)} disp. <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>(de {totalSpotsWomen})</span></div>
+                        <div style={{ fontSize: '0.75rem', color: 'gray', marginTop: '0.2rem' }}>Pagos: {paidWomen} · Pendientes: {registeredWomen - paidWomen}</div>
                       </div>
                     )}
                   </div>
@@ -521,14 +521,14 @@ export default function AdminClient({ events }: { events: Event[] }) {
 
                   <div style={{ marginBottom: '1.5rem' }}>
                     <span style={{
-                      background: ev.stripeEnabled ? 'rgba(57,255,20,0.1)' : 'rgba(255,16,122,0.1)',
-                      color: ev.stripeEnabled ? 'var(--neon-green)' : 'var(--neon-pink)',
+                      background: ev.mpEnabled ? 'rgba(0,255,255,0.1)' : 'rgba(255,16,122,0.1)',
+                      color: ev.mpEnabled ? 'var(--neon-cyan)' : 'var(--neon-pink)',
                       padding: '0.2rem 0.6rem',
                       borderRadius: '6px',
                       fontSize: '0.75rem',
-                      border: `1px solid ${ev.stripeEnabled ? 'rgba(57,255,20,0.2)' : 'rgba(255,16,122,0.2)'}`,
+                      border: `1px solid ${ev.mpEnabled ? 'rgba(0,255,255,0.2)' : 'rgba(255,16,122,0.2)'}`,
                     }}>
-                      {ev.stripeEnabled ? '💳 Stripe Habilitado' : '🚫 Solo Transferencias'}
+                      {ev.mpEnabled ? '💳 Mercado Pago Habilitado' : '🚫 Solo Transferencias'}
                     </span>
                   </div>
 

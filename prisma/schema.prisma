@@ -19,7 +19,7 @@ model Event {
   ageRange        String
   drinksAvailable String
   spotsPerGender  Int            @default(8)
-  stripeEnabled   Boolean        @default(true)
+  mpEnabled       Boolean        @default(true)
   registrations   Registration[]
   createdAt       DateTime       @default(now())
 }
@@ -32,7 +32,7 @@ model Registration {
   selectedDrink String
   eventId       String
   paid          Boolean  @default(false)
-  paymentMethod String   @default("stripe")
+  paymentMethod String   @default("mercadopago")
   paymentId     String?
   event         Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   createdAt     DateTime @default(now())
