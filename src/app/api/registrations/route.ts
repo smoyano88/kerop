@@ -1,130 +1,214 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import Stripe from 'stripe';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder', {
-  apiVersion: '2023-10-16' as any,
-});
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import {
+  MercadoPagoPreference,
+  mercadoPagoClient,
+  getPreferenceInitPoint,
+} from "@/lib/mercadopago";
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const eventId = searchParams.get('eventId');
-    
+    const eventId = searchParams.get("eventId");
+
     if (eventId) {
       const registrations = await prisma.registration.findMany({
         where: { eventId },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: "desc" },
       });
       return NextResponse.json(registrations);
     }
 
     const allRegistrations = await prisma.registration.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: { event: true }
+      orderBy: { createdAt: "desc" },
+      include: { event: true },
     });
-    
+
     return NextResponse.json(allRegistrations);
   } catch (error) {
-    return NextResponse.json({ error: 'Error fetching registrations' }, { status: 500 });
+    return NextResponse.json(
+      { error: "Error fetching registrations" },
+      { status: 500 },
+    );
   }
 }
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { firstName, lastName, gender, selectedDrink, eventId, paymentMethod } = body;
+    const {
+      firstName,
+      lastName,
+      gender,
+      selectedDrink,
+      eventId,
+      paymentMethod,
+    } = body;
 
     // 0. Validar Cupos (Backend Strict Check)
+    // Solo se cuentan registraciones PAGADAS — las pendientes no bloquean cupos
     const event = await prisma.event.findUnique({
       where: { id: eventId },
-      include: { registrations: true }
+      include: { registrations: { where: { paid: true } } },
     });
 
     if (!event) {
-      return NextResponse.json({ error: 'Evento no encontrado' }, { status: 404 });
+      return NextResponse.json(
+        { error: "Evento no encontrado" },
+        { status: 404 },
+      );
     }
 
-    const isHH = event.type === 'Ellos y Ellos';
-    const isMM = event.type === 'Ellas y Ellas';
-    const totalCapacityMen = isHH ? event.spotsPerGender * 2 : event.spotsPerGender;
-    const totalCapacityWomen = isMM ? event.spotsPerGender * 2 : event.spotsPerGender;
+    const isHH = event.type === "Ellos y Ellos";
+    const isMM = event.type === "Ellas y Ellas";
+    const totalCapacityMen = isHH
+      ? event.spotsPerGender * 2
+      : event.spotsPerGender;
+    const totalCapacityWomen = isMM
+      ? event.spotsPerGender * 2
+      : event.spotsPerGender;
 
-    const registeredMen = event.registrations.filter(r => r.gender === 'Hombre').length;
-    const registeredWomen = event.registrations.filter(r => r.gender === 'Mujer').length;
-    
-    if (gender === 'Hombre' && registeredMen >= totalCapacityMen) {
-      return NextResponse.json({ error: '¡Ups! Ya no quedan cupos para Hombres en este evento.' }, { status: 400 });
+    const registeredMen = event.registrations.filter(
+      (r) => r.gender === "Hombre",
+    ).length;
+    const registeredWomen = event.registrations.filter(
+      (r) => r.gender === "Mujer",
+    ).length;
+
+    if (gender === "Hombre" && registeredMen >= totalCapacityMen) {
+      return NextResponse.json(
+        { error: "¡Ups! Ya no quedan cupos para Hombres en este evento." },
+        { status: 400 },
+      );
     }
-    if (gender === 'Mujer' && registeredWomen >= totalCapacityWomen) {
-      return NextResponse.json({ error: '¡Ups! Ya no quedan cupos para Mujeres en este evento.' }, { status: 400 });
+    if (gender === "Mujer" && registeredWomen >= totalCapacityWomen) {
+      return NextResponse.json(
+        { error: "¡Ups! Ya no quedan cupos para Mujeres en este evento." },
+        { status: 400 },
+      );
     }
 
     // 1. Guardar la registración como Pendiente
     const registration = await prisma.registration.create({
       data: {
-        firstName, lastName, gender, selectedDrink, eventId,
+        firstName,
+        lastName,
+        gender,
+        selectedDrink,
+        eventId,
         paid: false,
-        paymentMethod: paymentMethod || 'stripe',
+        paymentMethod,
       },
-      include: { event: true }
+      include: { event: true },
     });
 
     const eventName = registration.event.type;
-    const baseURL = request.headers.get('origin') || 'http://localhost:3000';
+    const baseURL =
+      process.env.NEXT_PUBLIC_BASE_URL ||
+      request.headers.get("origin") ||
+      "http://localhost:3000";
+    const isLocalhost = baseURL.includes("localhost") || baseURL.includes("127.0.0.1");
 
-    // Si eligió transferencia, no crear sesión de Stripe
-    if (paymentMethod === 'transfer') {
-      return NextResponse.json({ 
+    // Si eligió transferencia, no crear sesión de MP
+    if (paymentMethod === "transfer") {
+      return NextResponse.json({
         registration,
-        paymentMethod: 'transfer'
+        paymentMethod: "transfer",
       });
     }
 
-    // 2. Crear sesión de Stripe (precio más alto para cubrir comisión)
-    if (!process.env.STRIPE_SECRET_KEY) {
+    // 2. Crear Preferencia de MercadoPago
+    if (!process.env.MERCADOPAGO_ACCESS_TOKEN) {
       // Rollback database record
       await prisma.registration.delete({ where: { id: registration.id } });
-      return NextResponse.json({ error: 'STRIPE_SECRET_KEY no configurado en .env. Pago cancelado.' }, { status: 500 });
+      return NextResponse.json(
+        {
+          error:
+            "MERCADOPAGO_ACCESS_TOKEN no configurado en .env. Pago cancelado.",
+        },
+        { status: 500 },
+      );
     }
 
     try {
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ['card'],
-        line_items: [
-          {
-            price_data: {
-              currency: 'uyu',
-              product_data: {
-                name: `Entrada Kerop Speed Dating - ${eventName}`,
-                description: `Participante: ${firstName} ${lastName}`,
-              },
-              unit_amount: 85000, // $850 UYU (incluye comisión Stripe)
+      const preference = new MercadoPagoPreference(mercadoPagoClient);
+
+      const response = await preference.create({
+        body: {
+          items: [
+            {
+              id: eventId,
+              title: `Entrada Kerop Speed Dating - ${eventName}`,
+              description: `Participante: ${firstName} ${lastName}`,
+              quantity: 1,
+              unit_price: 850,
+              currency_id: "UYU",
             },
-            quantity: 1,
+          ],
+          external_reference: registration.id,
+          back_urls: {
+            success: `${baseURL}/eventos?pago=exitoso`,
+            pending: `${baseURL}/eventos?pago=pendiente`,
+            failure: `${baseURL}/eventos?pago=cancelado`,
           },
-        ],
-        mode: 'payment',
-        client_reference_id: registration.id,
-        success_url: `${baseURL}/eventos?pago=exitoso&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${baseURL}/eventos?pago=cancelado`,
+          // Webhook: MP llama a este endpoint cuando se confirma el pago
+          // Solo funciona con URLs públicas — en localhost no llega
+          ...(!isLocalhost && {
+            notification_url: `${baseURL}/api/webhooks/mercadopago`,
+            auto_return: "approved" as const,
+          }),
+        },
       });
 
-      console.log("✅ Sesión Stripe creada:", session.id);
+      const initPoint = getPreferenceInitPoint(response);
+      console.log(
+        "✅ Preferencia Mercado Pago creada:",
+        response.id,
+        "sandbox?",
+        initPoint !== response.init_point,
+      );
 
-      return NextResponse.json({ 
+      return NextResponse.json({
         registration,
-        init_point: session.url,
-        paymentMethod: 'stripe'
+        init_point: initPoint,
+        paymentMethod: "mercadopago",
       });
-    } catch (stripeError) {
-      console.error("Error de Stripe - haciendo rollback:", stripeError);
+    } catch (mpError: any) {
+      const errorMessage = mpError?.message || "Error desconocido";
+      const errorCode = mpError?.code || "UNKNOWN";
+      const errorStatus = mpError?.status || 500;
+
+      console.error(
+        `🔴 Error de MercadoPago (${errorStatus}):`,
+        errorCode,
+        errorMessage,
+      );
+      console.error("Detalles:", JSON.stringify(mpError, null, 2));
+
+      // Si es 403 UNAUTHORIZED, probablemente es el token
+      if (errorStatus === 403) {
+        console.error(
+          "\n⚠️  Token de Mercado Pago inválido o sin permisos.\n" +
+            "Verifica que el MERCADOPAGO_ACCESS_TOKEN en .env sea válido.\n" +
+            "Obtén tu token en: https://www.mercadopago.com/developers/panel/credentials\n",
+        );
+      }
+
       // Rollback the DB
       await prisma.registration.delete({ where: { id: registration.id } });
-      return NextResponse.json({ error: 'Error al conectar con la pasarela de pagos. Por favor intenta con Transferencia.' }, { status: 500 });
+      return NextResponse.json(
+        {
+          error:
+            "Error al conectar con Mercado Pago. Por favor intenta con Transferencia.",
+        },
+        { status: 500 },
+      );
     }
   } catch (error) {
     console.error("Error Registrations POST:", error);
-    return NextResponse.json({ error: 'Error procesando el registro' }, { status: 500 });
+    return NextResponse.json(
+      { error: "Error procesando el registro" },
+      { status: 500 },
+    );
   }
 }

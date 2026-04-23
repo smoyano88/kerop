@@ -20,6 +20,17 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Mercado Pago en modo de pruebas
+
+Para usar Mercado Pago en modo de pruebas, configura tu token de prueba en el archivo `.env` y deja el modo en `sandbox`:
+
+```env
+MERCADOPAGO_ACCESS_TOKEN="TEST-xxxxxxxxxxxx-xxxxxxxxxxxxx-xxxxxxxxxxxx"
+MERCADOPAGO_ENV="sandbox"
+```
+
+El proyecto ya tiene soporte para usar el `sandbox_init_point` cuando está en modo de pruebas, así que la preferencia de Mercado Pago redirige al entorno de pruebas automáticamente.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

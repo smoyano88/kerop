@@ -13,7 +13,8 @@ export default async function EventosPage() {
     where: { date: { gte: new Date() } },
     orderBy: { date: 'asc' },
     include: {
-      registrations: true
+      // Solo registraciones PAGADAS para el conteo de cupos
+      registrations: { where: { paid: true } }
     }
   });
 

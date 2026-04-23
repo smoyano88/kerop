@@ -12,7 +12,7 @@ interface Event {
   ageRange: string;
   drinksAvailable: string;
   spotsPerGender: number;
-  stripeEnabled: boolean;
+  mpEnabled: boolean;
   registrations?: any[];
 }
 
@@ -26,10 +26,10 @@ export default function EventListClient({ events }: { events: Event[] }) {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const pago = params.get('pago');
-      const sessionId = params.get('session_id');
+      const paymentId = params.get('payment_id');
       
-      if (pago === 'exitoso' && sessionId) {
-        fetch(`/api/checkout/verify?session_id=${sessionId}`)
+      if (pago === 'exitoso' && paymentId) {
+        fetch(`/api/checkout/verify?payment_id=${paymentId}`)
           .then(res => res.json())
           .then(data => {
             if (data.success) {
@@ -173,9 +173,9 @@ export default function EventListClient({ events }: { events: Event[] }) {
 
 function RegistrationModal({ event, onClose }: { event: Event, onClose: () => void }) {
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState<'stripe' | 'transfer' | false>(false);
+  const [success, setSuccess] = useState<'mercadopago' | 'transfer' | false>(false);
   const [error, setError] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'transfer'>(event.stripeEnabled ? 'stripe' : 'transfer');
+  const [paymentMethod, setPaymentMethod] = useState<'mercadopago' | 'transfer'>(event.mpEnabled ? 'mercadopago' : 'transfer');
 
   const drinks = event.drinksAvailable.split(',').map(d => d.trim()).filter(Boolean);
 
@@ -219,8 +219,8 @@ function RegistrationModal({ event, onClose }: { event: Event, onClose: () => vo
       if (resData.paymentMethod === 'transfer') {
         setSuccess('transfer');
       } else if (resData.init_point) {
-        setSuccess('stripe');
-        // Redirigir a Stripe
+        setSuccess('mercadopago');
+        // Redirigir a Mercado Pago
         window.location.href = resData.init_point;
       }
     } catch (err: any) {
@@ -259,12 +259,12 @@ function RegistrationModal({ event, onClose }: { event: Event, onClose: () => vo
           {event.type} <span style={{color: 'var(--neon-green)'}}>•</span> <span suppressHydrationWarning>{format(new Date(event.date), "dd/MM/yyyy")}</span>
         </p>
 
-        {success === 'stripe' ? (
+        {success === 'mercadopago' ? (
           <div style={{ textAlign: 'center', padding: '2rem 0' }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(57,255,20,0.1)', color: 'var(--neon-green)', marginBottom: '1.5rem' }}>
               <Wine size={40} />
             </div>
-            <h4 style={{ fontSize: '2rem', marginBottom: '1rem', color: 'white' }}>¡Redirigiendo...!</h4>
+            <h4 style={{ fontSize: '2rem', marginBottom: '1rem', color: 'white' }}>¡Redirigiendo a Mercado Pago!</h4>
             <p style={{ color: 'var(--text-muted)' }}>Deberías ser enviado al Checkout en unos segundos.</p>
           </div>
         ) : success === 'transfer' ? (
@@ -341,22 +341,23 @@ function RegistrationModal({ event, onClose }: { event: Event, onClose: () => vo
             <div style={{ marginBottom: '2rem' }}>
               <label className="input-label" style={{ marginBottom: '0.75rem', display: 'block' }}>Forma de Pago</label>
               
-              <div style={{ display: 'grid', gridTemplateColumns: event.stripeEnabled ? '1fr 1fr' : '1fr', gap: '1rem' }}>
-                {event.stripeEnabled && (
+              <div style={{ display: 'grid', gridTemplateColumns: event.mpEnabled ? '1fr 1fr' : '1fr', gap: '1rem' }}>
+                {event.mpEnabled && (
                   <div 
-                    onClick={() => setPaymentMethod('stripe')}
+                    onClick={() => setPaymentMethod('mercadopago')}
                     style={{ 
-                      border: `1px solid ${paymentMethod === 'stripe' ? 'var(--neon-pink)' : 'rgba(255,255,255,0.1)'}`, 
-                      background: paymentMethod === 'stripe' ? 'rgba(255,16,122,0.1)' : 'rgba(0,0,0,0.3)',
+                      border: `1px solid ${paymentMethod === 'mercadopago' ? 'var(--neon-cyan)' : 'rgba(255,255,255,0.1)'}`, 
+                      background: paymentMethod === 'mercadopago' ? 'rgba(0, 255, 255, 0.1)' : 'rgba(0,0,0,0.3)',
                       padding: '1rem', borderRadius: '8px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.2s'
                     }}
                   >
                     <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>💳</div>
-                    <div style={{ fontWeight: 600, color: 'white', fontSize: '0.9rem' }}>Tarjeta</div>
-                    <div style={{ color: 'var(--neon-pink)', fontSize: '0.85rem', marginTop: '0.2rem' }}>$850 UYU</div>
-                    <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem', marginTop: '0.2rem' }}>Online (incluye com.)</div>
+                    <div style={{ fontWeight: 600, color: 'white', fontSize: '0.9rem' }}>Mercado Pago</div>
+                    <div style={{ color: 'var(--neon-cyan)', fontSize: '0.85rem', marginTop: '0.2rem' }}>$850 UYU</div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem', marginTop: '0.2rem' }}>Tarjetas o Dinero MP</div>
                   </div>
                 )}
+
 
                 <div 
                   onClick={() => setPaymentMethod('transfer')}
@@ -377,7 +378,7 @@ function RegistrationModal({ event, onClose }: { event: Event, onClose: () => vo
             {error && <p className="text-pink" style={{ marginBottom: '1.5rem', fontSize: '0.9rem', textAlign: 'center' }}>{error}</p>}
             
             <button type="submit" className="btn btn-primary" style={{ width: '100%', fontSize: '1.1rem' }} disabled={loading}>
-              {loading ? 'Procesando...' : paymentMethod === 'stripe' ? 'Ir a Pagar ($850)' : 'Ver datos para transferir'}
+              {loading ? 'Procesando...' : paymentMethod === 'mercadopago' ? 'Ir a MercadoPago ($850)' : 'Ver datos para transferir'}
             </button>
           </form>
         )}
