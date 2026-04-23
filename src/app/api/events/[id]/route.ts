@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { verifyAdminPassword } from '@/lib/auth';
 
 export async function DELETE(
   request: Request,
@@ -9,7 +10,7 @@ export async function DELETE(
     const { id } = await params;
     const body = await request.json();
 
-    if (body.password !== 'Kerop2024') {
+    if (!(await verifyAdminPassword(body.password))) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
