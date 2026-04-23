@@ -37,3 +37,8 @@ model Registration {
   event         Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   createdAt     DateTime @default(now())
 }
+
+model Setting {
+  key   String @id
+  value String
+}
