@@ -141,7 +141,7 @@ export async function POST(request: Request) {
               title: `Entrada Kerop Speed Dating - ${eventName}`,
               description: `Participante: ${firstName} ${lastName}`,
               quantity: 1,
-              unit_price: 850,
+              unit_price: event.price,
               currency_id: "UYU",
             },
           ],

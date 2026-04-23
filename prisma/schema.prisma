@@ -19,6 +19,7 @@ model Event {
   ageRange        String
   drinksAvailable String
   spotsPerGender  Int            @default(8)
+  price           Int            @default(850)
   mpEnabled       Boolean        @default(true)
   registrations   Registration[]
   createdAt       DateTime       @default(now())

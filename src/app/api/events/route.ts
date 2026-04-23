@@ -32,6 +32,7 @@ export async function POST(request: Request) {
       spotsPerGender,
       password,
       mpEnabled,
+      price,
     } = body;
 
     // Simple Admin Auth
@@ -50,6 +51,7 @@ export async function POST(request: Request) {
         drinksAvailable,
         spotsPerGender: parseInt(spotsPerGender || "8", 10),
         mpEnabled: mpEnabled !== false, // Defaults to true
+        price: parseInt(price, 10) || 850,
       },
     });
 

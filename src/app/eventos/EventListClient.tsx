@@ -13,6 +13,7 @@ interface Event {
   drinksAvailable: string;
   spotsPerGender: number;
   mpEnabled: boolean;
+  price: number;
   registrations?: any[];
 }
 
@@ -278,7 +279,7 @@ function RegistrationModal({ event, onClose }: { event: Event, onClose: () => vo
             </div>
             
             <div style={{ background: 'rgba(255,255,255,0.05)', padding: '1.5rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.9rem', lineHeight: 1.6 }}>
-              <p style={{ color: 'var(--neon-green)', fontWeight: 600, marginBottom: '0.5rem', textTransform: 'uppercase', fontSize: '0.8rem', letterSpacing: '1px' }}>Datos para Transferencia ($800 UYU)</p>
+              <p style={{ color: 'var(--neon-green)', fontWeight: 600, marginBottom: '0.5rem', textTransform: 'uppercase', fontSize: '0.8rem', letterSpacing: '1px' }}>Datos para Transferencia (${event.price || 850} UYU)</p>
               
               <div style={{ marginBottom: '1rem' }}>
                 <strong style={{ color: 'white' }}>Mariana Ganimian</strong><br/>
@@ -353,7 +354,7 @@ function RegistrationModal({ event, onClose }: { event: Event, onClose: () => vo
                   >
                     <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>💳</div>
                     <div style={{ fontWeight: 600, color: 'white', fontSize: '0.9rem' }}>Mercado Pago</div>
-                    <div style={{ color: 'var(--neon-cyan)', fontSize: '0.85rem', marginTop: '0.2rem' }}>$850 UYU</div>
+                    <div style={{ color: 'var(--neon-cyan)', fontSize: '0.85rem', marginTop: '0.2rem' }}>${event.price || 850} UYU</div>
                     <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem', marginTop: '0.2rem' }}>Tarjetas o Dinero MP</div>
                   </div>
                 )}
@@ -369,7 +370,7 @@ function RegistrationModal({ event, onClose }: { event: Event, onClose: () => vo
                 >
                   <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>🏦</div>
                   <div style={{ fontWeight: 600, color: 'white', fontSize: '0.9rem' }}>Transferencia</div>
-                  <div style={{ color: 'var(--neon-green)', fontSize: '0.85rem', marginTop: '0.2rem' }}>$800 UYU</div>
+                  <div style={{ color: 'var(--neon-green)', fontSize: '0.85rem', marginTop: '0.2rem' }}>${event.price || 850} UYU</div>
                   <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem', marginTop: '0.2rem' }}>Transferencia directa</div>
                 </div>
               </div>
@@ -378,7 +379,7 @@ function RegistrationModal({ event, onClose }: { event: Event, onClose: () => vo
             {error && <p className="text-pink" style={{ marginBottom: '1.5rem', fontSize: '0.9rem', textAlign: 'center' }}>{error}</p>}
             
             <button type="submit" className="btn btn-primary" style={{ width: '100%', fontSize: '1.1rem' }} disabled={loading}>
-              {loading ? 'Procesando...' : paymentMethod === 'mercadopago' ? 'Ir a MercadoPago ($850)' : 'Ver datos para transferir'}
+              {loading ? 'Procesando...' : paymentMethod === 'mercadopago' ? `Ir a MercadoPago ($${event.price || 850})` : 'Ver datos para transferir'}
             </button>
           </form>
         )}
