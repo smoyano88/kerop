@@ -215,30 +215,47 @@ export default function AdminClient({ events }: { events: Event[] }) {
   const subscribeToPush = async () => {
     try {
       setLoading(true);
-      const registration = await navigator.serviceWorker.register('/sw.js');
-      const publicVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-      if (!publicVapidKey) {
-        throw new Error('No hay VAPID public key configurada');
+      
+      if (!('serviceWorker' in navigator)) {
+        throw new Error('Este navegador no soporta notificaciones Push.');
       }
 
+      // 1. Registrar y esperar a que esté listo
+      await navigator.serviceWorker.register('/sw.js');
+      const registration = await navigator.serviceWorker.ready;
+
+      // 2. Obtener clave pública
+      const publicVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      if (!publicVapidKey) {
+        throw new Error('Error: No se encontró la clave pública VAPID.');
+      }
+
+      // 3. Suscribirse
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: publicVapidKey
       });
 
+      // 4. Guardar en el servidor
       const res = await fetch('/api/push-subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subscription, password: currentAdminPassword })
       });
 
-      if (!res.ok) throw new Error('Error al guardar suscripción');
-      showSuccess('✅ Notificaciones activadas en este dispositivo.');
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Error al guardar la suscripción');
+      }
+
+      showSuccess('✅ ¡Listo! Este dispositivo recibirá notificaciones.');
     } catch (err: any) {
-      setError(err.message || 'No se pudieron activar las notificaciones');
+      console.error('Push error:', err);
+      setError(err.message || 'Error activando notificaciones');
     } finally {
       setLoading(false);
     }
+  };
   };
 
   const handleCreateEvent = async (e: React.FormEvent<HTMLFormElement>) => {
