@@ -256,7 +256,6 @@ export default function AdminClient({ events }: { events: Event[] }) {
       setLoading(false);
     }
   };
-  };
 
   const handleCreateEvent = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
