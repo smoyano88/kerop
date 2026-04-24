@@ -71,7 +71,7 @@ export async function POST(request: Request) {
               );
 
               sendWhatsApp(
-                '+598097183275',
+                '+59897183275',
                 getAdminWhatsAppText(existing.firstName, existing.lastName, eventInfo.type, eventDateStr, existing.email, existing.phone, 'MercadoPago', true)
               );
             }

@@ -513,18 +513,21 @@ export default function AdminClient({ events }: { events: Event[] }) {
                       {/* Drink tags display */}
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginBottom: '1rem' }}>
                         <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginRight: '0.25rem', alignSelf: 'center' }}>🍹</span>
-                        {drinksList.map((drink, idx) => (
-                          <span key={idx} style={{
-                            background: 'rgba(255,16,122,0.1)',
-                            color: 'var(--neon-pink)',
-                            padding: '0.2rem 0.6rem',
-                            borderRadius: '50px',
-                            fontSize: '0.75rem',
-                            border: '1px solid rgba(255,16,122,0.2)',
-                          }}>
-                            {drink}
-                          </span>
-                        ))}
+                        {drinksList.map((drink, idx) => {
+                          const isAlcoholic = DRINKS_ALCOHOLICAS.includes(drink.trim());
+                          return (
+                            <span key={idx} style={{
+                              background: isAlcoholic ? 'rgba(255,16,122,0.1)' : 'rgba(57,255,20,0.1)',
+                              color: isAlcoholic ? 'var(--neon-pink)' : 'var(--neon-green)',
+                              padding: '0.2rem 0.6rem',
+                              borderRadius: '50px',
+                              fontSize: '0.75rem',
+                              border: `1px solid ${isAlcoholic ? 'rgba(255,16,122,0.2)' : 'rgba(57,255,20,0.2)'}`,
+                            }}>
+                              {drink}
+                            </span>
+                          );
+                        })}
                       </div>
 
                       <div style={{ marginBottom: '1.5rem' }}>
@@ -580,8 +583,17 @@ export default function AdminClient({ events }: { events: Event[] }) {
                                       <td style={{ padding: '0.6rem 0.8rem', color: 'var(--text-muted)' }}>{idx + 1}</td>
                                       <td style={{ padding: '0.6rem 0.8rem', fontWeight: 600, whiteSpace: 'nowrap' }}>{reg.firstName} {reg.lastName}</td>
                                       <td style={{ padding: '0.6rem 0.8rem', color: 'var(--text-muted)' }}>{reg.gender === 'Hombre' ? '👨' : '👩'}</td>
-                                      <td style={{ padding: '0.6rem 0.8rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '150px' }} title={reg.selectedDrink}>
-                                        <span style={{ color: 'var(--text-muted)' }}>{reg.selectedDrink}</span>
+                                      <td style={{ padding: '0.6rem 0.8rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }} title={reg.selectedDrink}>
+                                        <span style={{ 
+                                          background: DRINKS_ALCOHOLICAS.includes(reg.selectedDrink) ? 'rgba(255,16,122,0.1)' : 'rgba(57,255,20,0.1)',
+                                          color: DRINKS_ALCOHOLICAS.includes(reg.selectedDrink) ? 'var(--neon-pink)' : 'var(--neon-green)',
+                                          padding: '0.2rem 0.6rem',
+                                          borderRadius: '50px',
+                                          fontSize: '0.75rem',
+                                          border: `1px solid ${DRINKS_ALCOHOLICAS.includes(reg.selectedDrink) ? 'rgba(255,16,122,0.2)' : 'rgba(57,255,20,0.2)'}`,
+                                        }}>
+                                          {reg.selectedDrink}
+                                        </span>
                                       </td>
                                       <td style={{ padding: '0.6rem 0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                                         {format(new Date(reg.createdAt), "dd/MM HH:mm")}

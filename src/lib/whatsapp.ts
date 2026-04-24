@@ -9,7 +9,12 @@ export const sendWhatsApp = async (to: string, message: string) => {
   }
 
   // Limpiar el número (quitar +, espacios, guiones)
-  const cleanPhone = to.replace(/\D/g, '');
+  let cleanPhone = to.replace(/\D/g, '');
+
+  // Corrección para Uruguay: Si empieza con 59809, quitar el 0 -> 5989
+  if (cleanPhone.startsWith('5980')) {
+    cleanPhone = '598' + cleanPhone.substring(4);
+  }
 
   try {
     // Ejemplo genérico para APIs como UltraMsg o similares que usan POST con JSON

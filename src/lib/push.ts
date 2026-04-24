@@ -27,6 +27,7 @@ export const sendPushNotification = async (title: string, body: string, url: str
 
   try {
     const subscriptions = await prisma.pushSubscription.findMany();
+    console.log(`🔔 Intentando enviar Push a ${subscriptions.length} dispositivos.`);
     
     if (subscriptions.length === 0) {
       console.log('ℹ️ No hay suscripciones Push guardadas para enviar.');
