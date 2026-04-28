@@ -1140,102 +1140,110 @@ export default function AdminClient({ events }: { events: Event[] }) {
               )}
 
               {/* Resultados */}
-              {matchResults && (
-                <div className="glass-card" style={{ padding: '1.5rem', border: '1px solid rgba(57,255,20,0.2)' }}>
-                  {/* Header con stats */}
-                  <div style={{ textAlign: 'center', marginBottom: '2rem', padding: '1.5rem', background: matchResults.totalMatches > 0 ? 'rgba(57,255,20,0.05)' : 'rgba(255,255,255,0.02)', borderRadius: '12px' }}>
-                    <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>{matchResults.totalMatches > 0 ? '🎉' : '😢'}</div>
-                    <h3 style={{ color: matchResults.totalMatches > 0 ? 'var(--neon-green)' : 'var(--text-muted)', fontSize: '1.5rem', marginBottom: '0.5rem' }}>
-                      {matchResults.totalMatches > 0 ? `${matchResults.totalMatches} Match${matchResults.totalMatches > 1 ? 'es' : ''} encontrado${matchResults.totalMatches > 1 ? 's' : ''}!` : 'No hubo matches esta vez'}
-                    </h3>
-                    <div style={{ display: 'flex', justifyContent: 'center', gap: '2rem', marginTop: '1rem' }}>
-                      <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--neon-green)' }}>{matchResults.summary.filter((s: any) => s.matches.length > 0).length}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Con match</div>
+              {matchResults && (() => {
+                const menSummary = matchResults.summary.filter((s: any) => s.person.gender === 'Hombre');
+                const womenSummary = matchResults.summary.filter((s: any) => s.person.gender === 'Mujer');
+
+                const renderPersonCard = (item: any) => {
+                  const hasMatch = item.matches.length > 0;
+                  return (
+                    <div key={item.person.id} style={{
+                      padding: '1rem', borderRadius: '10px', marginBottom: '0.5rem',
+                      background: hasMatch ? 'rgba(57,255,20,0.06)' : 'rgba(255,255,255,0.02)',
+                      border: hasMatch ? '1px solid rgba(57,255,20,0.2)' : '1px solid rgba(255,255,255,0.06)',
+                      transition: 'all 0.2s',
+                    }}>
+                      <div style={{ fontWeight: 700, color: 'white', fontSize: '0.9rem', marginBottom: '0.25rem' }}>
+                        {item.person.firstName} {item.person.lastName}
                       </div>
-                      <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--text-muted)' }}>{matchResults.summary.filter((s: any) => s.matches.length === 0).length}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Sin match</div>
+                      {item.person.email && (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: hasMatch ? '0.6rem' : 0 }}>
+                          {item.person.email}
+                        </div>
+                      )}
+                      {hasMatch ? (
+                        <div>
+                          {item.matches.map((m: any) => (
+                            <div key={m.id} style={{
+                              display: 'flex', alignItems: 'center', gap: '0.4rem',
+                              padding: '0.35rem 0.6rem', marginTop: '0.3rem',
+                              background: 'rgba(255,16,122,0.1)', borderRadius: '6px',
+                              border: '1px solid rgba(255,16,122,0.2)',
+                            }}>
+                              <span style={{ fontSize: '0.75rem' }}>💘</span>
+                              <span style={{ color: 'var(--neon-pink)', fontSize: '0.8rem', fontWeight: 600 }}>{m.firstName} {m.lastName}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.25)', marginTop: '0.25rem', fontStyle: 'italic' }}>Sin match</div>
+                      )}
+                    </div>
+                  );
+                };
+
+                return (
+                  <div className="glass-card" style={{ padding: '1.5rem', border: '1px solid rgba(57,255,20,0.2)' }}>
+                    {/* Header */}
+                    <div style={{ textAlign: 'center', marginBottom: '2rem', padding: '1.5rem', background: matchResults.totalMatches > 0 ? 'rgba(57,255,20,0.05)' : 'rgba(255,255,255,0.02)', borderRadius: '12px' }}>
+                      <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>{matchResults.totalMatches > 0 ? '🎉' : '😢'}</div>
+                      <h3 style={{ color: matchResults.totalMatches > 0 ? 'var(--neon-green)' : 'var(--text-muted)', fontSize: '1.4rem', marginBottom: '0.5rem' }}>
+                        {matchResults.totalMatches > 0 ? `${matchResults.totalMatches} Match${matchResults.totalMatches > 1 ? 'es' : ''} encontrado${matchResults.totalMatches > 1 ? 's' : ''}!` : 'No hubo matches esta vez'}
+                      </h3>
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: '2rem', marginTop: '0.75rem' }}>
+                        <div><span style={{ fontWeight: 'bold', color: 'var(--neon-green)', fontSize: '1.3rem' }}>{matchResults.summary.filter((s: any) => s.matches.length > 0).length}</span> <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>con match</span></div>
+                        <div><span style={{ fontWeight: 'bold', color: 'var(--text-muted)', fontSize: '1.3rem' }}>{matchResults.summary.filter((s: any) => s.matches.length === 0).length}</span> <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>sin match</span></div>
+                      </div>
+                    </div>
+
+                    {/* Parejas match — vista rápida */}
+                    {matchResults.totalMatches > 0 && (
+                      <div style={{ marginBottom: '2rem' }}>
+                        <h4 style={{ color: 'var(--neon-pink)', marginBottom: '1rem', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px' }}>💘 Parejas Confirmadas</h4>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          {matchResults.matches.map((match: any, idx: number) => (
+                            <div key={idx} style={{
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: '10px',
+                              background: 'rgba(57,255,20,0.06)', border: '1px solid rgba(57,255,20,0.15)',
+                              flexWrap: 'wrap',
+                            }}>
+                              <div style={{ textAlign: 'right', flex: 1, minWidth: '120px' }}>
+                                <div style={{ fontWeight: 700, color: 'white', fontSize: '0.9rem' }}>{match.person1.firstName} {match.person1.lastName}</div>
+                                {match.person1.email && <div style={{ fontSize: '0.7rem', color: 'var(--neon-cyan)' }}>{match.person1.email}</div>}
+                              </div>
+                              <div style={{ color: 'var(--neon-pink)', fontSize: '1.2rem', flexShrink: 0 }}>💘</div>
+                              <div style={{ textAlign: 'left', flex: 1, minWidth: '120px' }}>
+                                <div style={{ fontWeight: 700, color: 'white', fontSize: '0.9rem' }}>{match.person2.firstName} {match.person2.lastName}</div>
+                                {match.person2.email && <div style={{ fontSize: '0.7rem', color: 'var(--neon-cyan)' }}>{match.person2.email}</div>}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Dos columnas: Hombres | Mujeres */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                      {/* Columna Hombres */}
+                      <div>
+                        <div style={{ textAlign: 'center', marginBottom: '0.75rem', padding: '0.5rem', background: 'rgba(0,150,255,0.08)', borderRadius: '8px', border: '1px solid rgba(0,150,255,0.15)' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'rgba(100,180,255,1)', letterSpacing: '0.5px' }}>🙋‍♂️ HOMBRES</span>
+                        </div>
+                        {menSummary.map((item: any) => renderPersonCard(item))}
+                      </div>
+
+                      {/* Columna Mujeres */}
+                      <div>
+                        <div style={{ textAlign: 'center', marginBottom: '0.75rem', padding: '0.5rem', background: 'rgba(255,16,122,0.08)', borderRadius: '8px', border: '1px solid rgba(255,16,122,0.15)' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--neon-pink)', letterSpacing: '0.5px' }}>🙋‍♀️ MUJERES</span>
+                        </div>
+                        {womenSummary.map((item: any) => renderPersonCard(item))}
                       </div>
                     </div>
                   </div>
-
-                  {/* Sección: CON MATCH */}
-                  {matchResults.summary.filter((s: any) => s.matches.length > 0).length > 0 && (
-                    <div style={{ marginBottom: '2rem' }}>
-                      <h4 style={{ color: 'var(--neon-green)', marginBottom: '1rem', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        ❤️ Participantes con Match
-                      </h4>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                        {matchResults.summary.filter((item: any) => item.matches.length > 0).map((item: any) => (
-                          <div key={item.person.id} style={{
-                            padding: '1.25rem', borderRadius: '12px',
-                            background: 'rgba(57,255,20,0.06)',
-                            border: '1px solid rgba(57,255,20,0.2)',
-                          }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-                              <span style={{ fontWeight: 700, color: 'white', fontSize: '1rem' }}>
-                                {item.person.gender === 'Hombre' ? '🙋‍♂️' : '🙋‍♀️'} {item.person.firstName} {item.person.lastName}
-                              </span>
-                              <span style={{ background: 'rgba(57,255,20,0.15)', color: 'var(--neon-green)', padding: '0.2rem 0.75rem', borderRadius: '50px', fontSize: '0.8rem', fontWeight: 600 }}>
-                                {item.matches.length} match{item.matches.length > 1 ? 'es' : ''}
-                              </span>
-                            </div>
-                            {item.person.email && (
-                              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
-                                📧 {item.person.email}
-                              </div>
-                            )}
-                            <div style={{ background: 'rgba(0,0,0,0.3)', padding: '0.75rem', borderRadius: '8px' }}>
-                              <div style={{ fontSize: '0.75rem', color: 'var(--neon-pink)', marginBottom: '0.5rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                Hizo match con:
-                              </div>
-                              {item.matches.map((m: any, idx: number) => (
-                                <div key={m.id} style={{
-                                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                  padding: '0.5rem 0',
-                                  borderBottom: idx < item.matches.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
-                                  flexWrap: 'wrap', gap: '0.25rem'
-                                }}>
-                                  <span style={{ color: 'white', fontWeight: 600, fontSize: '0.9rem' }}>
-                                    💘 {m.firstName} {m.lastName}
-                                  </span>
-                                  {m.email && (
-                                    <span style={{ color: 'var(--neon-cyan)', fontSize: '0.8rem' }}>
-                                      {m.email}
-                                    </span>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Sección: SIN MATCH */}
-                  {matchResults.summary.filter((s: any) => s.matches.length === 0).length > 0 && (
-                    <div>
-                      <h4 style={{ color: 'var(--text-muted)', marginBottom: '1rem', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        Sin Match
-                      </h4>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                        {matchResults.summary.filter((item: any) => item.matches.length === 0).map((item: any) => (
-                          <div key={item.person.id} style={{
-                            padding: '0.6rem 1rem', borderRadius: '8px',
-                            background: 'rgba(255,255,255,0.03)',
-                            border: '1px solid rgba(255,255,255,0.05)',
-                            fontSize: '0.85rem', color: 'var(--text-muted)',
-                          }}>
-                            {item.person.gender === 'Hombre' ? '🙋‍♂️' : '🙋‍♀️'} {item.person.firstName} {item.person.lastName[0]}.
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
+                );
+              })()}
             </div>
           );
         })()}
