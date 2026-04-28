@@ -31,8 +31,10 @@ interface Registration {
   firstName: string;
   lastName: string;
   gender: string;
+  email?: string;
   selectedDrink: string;
   paid: boolean;
+  attended?: boolean;
   paymentMethod?: string;
   createdAt: string;
 }
@@ -57,8 +59,14 @@ export default function AdminClient({ events }: { events: Event[] }) {
   const [eventList, setEventList] = useState<Event[]>(events);
   
   // Navigation State
-  const [activeTab, setActiveTab] = useState<'events' | 'create' | 'password'>('events');
+  const [activeTab, setActiveTab] = useState<'events' | 'create' | 'matches' | 'password'>('events');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Match State
+  const [matchEventId, setMatchEventId] = useState<string | null>(null);
+  const [matchSelections, setMatchSelections] = useState<Record<string, string[]>>({});
+  const [matchResults, setMatchResults] = useState<any>(null);
+  const [matchLoading, setMatchLoading] = useState(false);
 
   const reloadEvents = async () => {
     try {
@@ -396,6 +404,10 @@ export default function AdminClient({ events }: { events: Event[] }) {
             <span className="admin-nav-icon">➕</span>
             <span className="admin-nav-label">Agregar Evento</span>
           </div>
+          <div className={`admin-nav-item ${activeTab === 'matches' ? 'active' : ''}`} onClick={() => { setActiveTab('matches'); setMatchResults(null); }}>
+            <span className="admin-nav-icon">💘</span>
+            <span className="admin-nav-label">Matches</span>
+          </div>
           <div className={`admin-nav-item ${activeTab === 'password' ? 'active' : ''}`} onClick={() => setActiveTab('password')}>
             <span className="admin-nav-icon">🔑</span>
             <span className="admin-nav-label">Cambiar Contraseña</span>
@@ -423,6 +435,10 @@ export default function AdminClient({ events }: { events: Event[] }) {
           <div className={`admin-mobile-nav-item ${activeTab === 'create' ? 'active' : ''}`} onClick={() => setActiveTab('create')}>
             <span className="admin-nav-icon">➕</span>
             <span>Agregar</span>
+          </div>
+          <div className={`admin-mobile-nav-item ${activeTab === 'matches' ? 'active' : ''}`} onClick={() => { setActiveTab('matches'); setMatchResults(null); }}>
+            <span className="admin-nav-icon">💘</span>
+            <span>Matches</span>
           </div>
           <div className={`admin-mobile-nav-item ${activeTab === 'password' ? 'active' : ''}`} onClick={() => setActiveTab('password')}>
             <span className="admin-nav-icon">🔑</span>
@@ -865,6 +881,281 @@ export default function AdminClient({ events }: { events: Event[] }) {
             </form>
           </div>
         )}
+
+        {/* ─── TAB: MATCHES ─── */}
+        {activeTab === 'matches' && (() => {
+          // Eventos con cupo completo (todos los pagados = spotsPerGender * 2 para mixto)
+          const fullEvents = eventList.filter(ev => {
+            const isHH = ev.type === 'Ellos y Ellos';
+            const isMM = ev.type === 'Ellas y Ellas';
+            const totalSpots = isHH || isMM ? ev.spotsPerGender * 2 : ev.spotsPerGender * 2;
+            const paidCount = ev.registrations.filter(r => r.paid).length;
+            return paidCount >= totalSpots;
+          });
+
+          const selectedEvent = matchEventId ? eventList.find(e => e.id === matchEventId) : null;
+          const paidRegs = selectedEvent?.registrations.filter(r => r.paid) || [];
+          const men = paidRegs.filter(r => r.gender === 'Hombre');
+          const women = paidRegs.filter(r => r.gender === 'Mujer');
+          const isHomoEvent = selectedEvent?.type === 'Ellos y Ellos' || selectedEvent?.type === 'Ellas y Ellas';
+          const allParticipants = isHomoEvent ? paidRegs : null;
+
+          const toggleSelection = (fromId: string, toId: string) => {
+            setMatchResults(null);
+            setMatchSelections(prev => {
+              const current = prev[fromId] || [];
+              const updated = current.includes(toId)
+                ? current.filter(id => id !== toId)
+                : [...current, toId];
+              return { ...prev, [fromId]: updated };
+            });
+          };
+
+          const handleLoadSelections = async (eventId: string) => {
+            setMatchEventId(eventId);
+            setMatchResults(null);
+            try {
+              const res = await fetch(`/api/matches?eventId=${eventId}`);
+              const data = await res.json();
+              setMatchSelections(data.selections || {});
+            } catch {
+              setMatchSelections({});
+            }
+          };
+
+          const handleSaveSelections = async () => {
+            if (!matchEventId) return;
+            setMatchLoading(true);
+            try {
+              await fetch('/api/matches', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ eventId: matchEventId, selections: matchSelections, password: currentAdminPassword }),
+              });
+              showSuccess('✅ Selecciones guardadas');
+            } catch { setError('Error guardando'); }
+            finally { setMatchLoading(false); }
+          };
+
+          const handleToggleAttended = async (regId: string) => {
+            try {
+              await fetch('/api/matches', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ eventId: matchEventId, toggleAttended: regId, password: currentAdminPassword }),
+              });
+              await reloadEvents();
+            } catch { setError('Error actualizando asistencia'); }
+          };
+
+          const handleMatchear = async () => {
+            if (!matchEventId) return;
+            setMatchLoading(true);
+            try {
+              // Guardar primero
+              await fetch('/api/matches', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ eventId: matchEventId, selections: matchSelections, password: currentAdminPassword }),
+              });
+              // Calcular
+              const res = await fetch('/api/matches', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ eventId: matchEventId, password: currentAdminPassword }),
+              });
+              const data = await res.json();
+              setMatchResults(data);
+            } catch { setError('Error calculando matches'); }
+            finally { setMatchLoading(false); }
+          };
+
+          // Render de una matriz cruzada
+          const renderMatrix = (rowParticipants: Registration[], colParticipants: Registration[], title: string) => (
+            <div style={{ marginBottom: '2rem' }}>
+              <h4 style={{ color: 'var(--neon-pink)', marginBottom: '1rem', fontSize: '1.1rem' }}>{title}</h4>
+              <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: `${colParticipants.length * 90 + 140}px` }}>
+                  <thead>
+                    <tr>
+                      <th style={{ padding: '0.75rem', textAlign: 'left', borderBottom: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,16,122,0.08)', color: 'var(--neon-pink)', fontSize: '0.8rem', position: 'sticky', left: 0, zIndex: 2, minWidth: '130px' }}>
+                        Participante
+                      </th>
+                      {colParticipants.map(col => (
+                        <th key={col.id} style={{ padding: '0.5rem', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,16,122,0.05)', fontSize: '0.75rem', color: 'white', minWidth: '80px', lineHeight: 1.2 }}>
+                          {col.firstName}<br/><span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>{col.lastName}</span>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rowParticipants.map(row => {
+                      const notAttended = row.attended === false;
+                      return (
+                        <tr key={row.id} style={{ opacity: notAttended ? 0.3 : 1, textDecoration: notAttended ? 'line-through' : 'none' }}>
+                          <td style={{ padding: '0.6rem 0.75rem', borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.3)', position: 'sticky', left: 0, zIndex: 1, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <button
+                              onClick={() => handleToggleAttended(row.id)}
+                              title={notAttended ? 'Marcar como asistió' : 'Marcar como NO asistió'}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.9rem', padding: 0 }}
+                            >
+                              {notAttended ? '❌' : '✅'}
+                            </button>
+                            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'white' }}>{row.firstName} {row.lastName[0]}.</span>
+                          </td>
+                          {colParticipants.map(col => {
+                            if (row.id === col.id) return (
+                              <td key={col.id} style={{ textAlign: 'center', padding: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.02)' }}>
+                                <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>—</span>
+                              </td>
+                            );
+                            const isSelected = (matchSelections[row.id] || []).includes(col.id);
+                            const isDisabled = notAttended || col.attended === false;
+                            return (
+                              <td key={col.id} style={{ textAlign: 'center', padding: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)', cursor: isDisabled ? 'not-allowed' : 'pointer', background: isSelected ? 'rgba(255,16,122,0.15)' : 'transparent', transition: 'background 0.2s' }}
+                                onClick={() => !isDisabled && toggleSelection(row.id, col.id)}
+                              >
+                                <div style={{
+                                  width: '24px', height: '24px', borderRadius: '6px', margin: '0 auto',
+                                  border: isSelected ? '2px solid var(--neon-pink)' : '2px solid rgba(255,255,255,0.15)',
+                                  background: isSelected ? 'rgba(255,16,122,0.3)' : 'transparent',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  transition: 'all 0.15s', fontSize: '0.8rem'
+                                }}>
+                                  {isSelected && '💘'}
+                                </div>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          );
+
+          return (
+            <div>
+              <h3 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>💘 Matches</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '2rem' }}>Cargá las planillas del evento y descubrí quiénes hicieron match.</p>
+
+              {/* Selector de evento */}
+              <div className="glass-card" style={{ marginBottom: '2rem', padding: '1.5rem' }}>
+                <label className="input-label">Seleccionar Evento</label>
+                {fullEvents.length === 0 ? (
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.5rem' }}>No hay eventos con cupo completo todavía. Los eventos aparecen acá cuando todos los cupos están pagados.</p>
+                ) : (
+                  <select
+                    className="input-field"
+                    value={matchEventId || ''}
+                    onChange={(e) => e.target.value && handleLoadSelections(e.target.value)}
+                    style={{ appearance: 'none', backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'white\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpolyline points=\'6 9 12 15 18 9\'%3E%3C/polyline%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', paddingRight: '3rem' }}
+                  >
+                    <option value="">Elegí un evento...</option>
+                    {fullEvents.map(ev => (
+                      <option key={ev.id} value={ev.id} style={{ background: '#000' }}>
+                        {ev.type} — {format(new Date(ev.date), "dd/MM/yyyy", { locale: es })} ({ev.registrations.filter(r => r.paid).length} pagados)
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              {/* Matrices */}
+              {selectedEvent && (
+                <div className="glass-card" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+                    <div>
+                      <h4 style={{ fontSize: '1.2rem', color: 'white' }}>{selectedEvent.type}</h4>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{format(new Date(selectedEvent.date), "EEEE d 'de' MMMM yyyy", { locale: es })} • {paidRegs.length} participantes pagados</p>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button onClick={handleSaveSelections} disabled={matchLoading} className="btn btn-outline" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
+                        💾 Guardar
+                      </button>
+                    </div>
+                  </div>
+
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '1.5rem', background: 'rgba(255,255,255,0.03)', padding: '0.75rem', borderRadius: '8px' }}>
+                    📋 Leé la planilla de cada participante y tildá a quién le puso match. Usá ✅/❌ para marcar si alguien no asistió.
+                  </p>
+
+                  {isHomoEvent && allParticipants ? (
+                    renderMatrix(allParticipants.filter(r => r.attended !== false), allParticipants.filter(r => r.attended !== false), `${selectedEvent.type} — Todos × Todos`)
+                  ) : (
+                    <>
+                      {renderMatrix(men.filter(r => r.attended !== false), women.filter(r => r.attended !== false), '🙋‍♂️ Hombres → Mujeres (¿a quién le puso match?)')}
+                      {renderMatrix(women.filter(r => r.attended !== false), men.filter(r => r.attended !== false), '🙋‍♀️ Mujeres → Hombres (¿a quién le puso match?)')}
+                    </>
+                  )}
+
+                  <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+                    <button
+                      onClick={handleMatchear}
+                      disabled={matchLoading}
+                      style={{
+                        background: 'linear-gradient(135deg, var(--neon-pink), #9b59b6)',
+                        color: 'white', border: 'none', padding: '1rem 3rem', borderRadius: '12px',
+                        fontSize: '1.2rem', fontWeight: 'bold', cursor: 'pointer',
+                        boxShadow: '0 4px 20px rgba(255,16,122,0.4)',
+                        transition: 'all 0.3s', letterSpacing: '1px'
+                      }}
+                    >
+                      {matchLoading ? 'Calculando...' : '💘 Matchear'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Resultados */}
+              {matchResults && (
+                <div className="glass-card" style={{ padding: '1.5rem', border: '1px solid rgba(57,255,20,0.2)' }}>
+                  <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+                    <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>💘</div>
+                    <h3 style={{ color: matchResults.totalMatches > 0 ? 'var(--neon-green)' : 'var(--text-muted)', fontSize: '1.5rem' }}>
+                      {matchResults.totalMatches > 0 ? `🎉 ${matchResults.totalMatches} Match${matchResults.totalMatches > 1 ? 'es' : ''} encontrado${matchResults.totalMatches > 1 ? 's' : ''}!` : 'No hubo matches esta vez 😢'}
+                    </h3>
+                  </div>
+
+                  {/* Resumen por participante */}
+                  <h4 style={{ color: 'var(--neon-pink)', marginBottom: '1rem', fontSize: '1rem' }}>Resumen por Participante</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {matchResults.summary.map((item: any) => (
+                      <div key={item.person.id} style={{
+                        padding: '1rem', borderRadius: '10px',
+                        background: item.matches.length > 0 ? 'rgba(57,255,20,0.06)' : 'rgba(255,255,255,0.03)',
+                        border: item.matches.length > 0 ? '1px solid rgba(57,255,20,0.2)' : '1px solid rgba(255,255,255,0.05)',
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: item.matches.length > 0 ? '0.75rem' : 0, flexWrap: 'wrap', gap: '0.5rem' }}>
+                          <span style={{ fontWeight: 700, color: 'white', fontSize: '0.95rem' }}>
+                            {item.person.gender === 'Hombre' ? '🙋‍♂️' : '🙋‍♀️'} {item.person.firstName} {item.person.lastName}
+                          </span>
+                          {item.matches.length > 0 ? (
+                            <span style={{ color: 'var(--neon-green)', fontSize: '0.85rem', fontWeight: 600 }}>❤️ {item.matches.length} match{item.matches.length > 1 ? 'es' : ''}</span>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Sin match</span>
+                          )}
+                        </div>
+                        {item.matches.length > 0 && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', paddingLeft: '1.5rem' }}>
+                            {item.matches.map((m: any) => (
+                              <div key={m.id} style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                                ↔ <span style={{ color: 'white' }}>{m.firstName} {m.lastName}</span>
+                                {m.email && <span style={{ color: 'var(--neon-cyan)', marginLeft: '0.5rem' }}>({m.email})</span>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* ─── TAB: CAMBIAR CONTRASEÑA ─── */}
         {activeTab === 'password' && (

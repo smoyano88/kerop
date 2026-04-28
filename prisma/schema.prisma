@@ -22,6 +22,7 @@ model Event {
   price           Int            @default(850)
   mpEnabled       Boolean        @default(true)
   registrations   Registration[]
+  matchData       MatchData?
   createdAt       DateTime       @default(now())
 }
 
@@ -35,6 +36,7 @@ model Registration {
   selectedDrink String
   eventId       String
   paid          Boolean  @default(false)
+  attended      Boolean  @default(true)
   paymentMethod String?
   paymentId     String?
   event         Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
@@ -52,4 +54,15 @@ model PushSubscription {
   p256dh    String
   auth      String
   createdAt DateTime @default(now())
+}
+
+model MatchData {
+  id         String   @id @default(uuid())
+  eventId    String   @unique
+  event      Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  // JSON: { "regId1": ["regId3", "regId5"], "regId2": ["regId1"] }
+  // Cada key = participante, array = los que marcó como "me gustó"
+  selections Json     @default("{}")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
