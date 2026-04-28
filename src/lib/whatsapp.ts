@@ -16,28 +16,47 @@ export const sendWhatsApp = async (to: string, message: string) => {
     cleanPhone = '598' + cleanPhone.substring(4);
   }
 
-  // Validar que el número tenga al menos 8 dígitos (descarta "+598" solo sin número real)
+  // Validar que el número tenga al menos 8 dígitos
   if (cleanPhone.length < 8) {
     console.log(`⚠️ WhatsApp no enviado: número inválido o incompleto → "${to}" (limpiado: "${cleanPhone}")`);
     return;
   }
 
-  const chatId = `${cleanPhone}@c.us`;
-  console.log(`📱 Enviando WhatsApp a chatId: ${chatId}`);
+  const baseUrl = `https://api.green-api.com/waInstance${idInstance}`;
 
   try {
-    // Green API usa este formato de URL con POST
-    const url = `https://api.green-api.com/waInstance${idInstance}/sendMessage/${apiToken}`;
+    // Paso 1: Verificar que el número existe en WhatsApp y obtener su chatId real
+    // Esto resuelve el problema de Argentina donde el 9 puede variar
+    let chatId = `${cleanPhone}@c.us`;
 
-    const res = await fetch(url, {
+    try {
+      const checkRes = await fetch(`${baseUrl}/checkWhatsapp/${apiToken}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber: cleanPhone }),
+      });
+
+      if (checkRes.ok) {
+        const checkData = await checkRes.json();
+        if (checkData.existsWhatsapp && checkData.chatId) {
+          chatId = checkData.chatId;
+          console.log(`✅ Número verificado en WA. chatId real: ${chatId}`);
+        } else {
+          console.warn(`⚠️ El número ${cleanPhone} no está registrado en WhatsApp. Se intenta enviar igual.`);
+        }
+      }
+    } catch (checkErr) {
+      // Si falla la verificación, intentamos enviar igual con el chatId estimado
+      console.warn('⚠️ No se pudo verificar el número en WA, intentando enviar igual:', checkErr);
+    }
+
+    console.log(`📱 Enviando WhatsApp a chatId: ${chatId}`);
+
+    // Paso 2: Enviar el mensaje
+    const res = await fetch(`${baseUrl}/sendMessage/${apiToken}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        chatId,
-        message
-      })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chatId, message }),
     });
 
     const responseData = await res.json();
