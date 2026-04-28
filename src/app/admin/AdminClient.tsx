@@ -1036,10 +1036,40 @@ export default function AdminClient({ events }: { events: Event[] }) {
             </div>
           );
 
+          const handleCreateTestEvent = async () => {
+            const spots = prompt('¿Cuántos cupos por género? (ej: 5 = 5 hombres + 5 mujeres)');
+            if (!spots) return;
+            setMatchLoading(true);
+            try {
+              const res = await fetch('/api/test-event', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: currentAdminPassword, spotsPerGender: parseInt(spots) }),
+              });
+              const data = await res.json();
+              if (data.ok) {
+                showSuccess(data.message);
+                await reloadEvents();
+              } else { setError(data.error); }
+            } catch { setError('Error creando evento de prueba'); }
+            finally { setMatchLoading(false); }
+          };
+
           return (
             <div>
-              <h3 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>💘 Matches</h3>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '2rem' }}>Cargá las planillas del evento y descubrí quiénes hicieron match.</p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>💘 Matches</h3>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Cargá las planillas del evento y descubrí quiénes hicieron match.</p>
+                </div>
+                <button
+                  onClick={handleCreateTestEvent}
+                  disabled={matchLoading}
+                  style={{ background: 'rgba(0,255,255,0.1)', border: '1px solid rgba(0,255,255,0.3)', color: 'var(--neon-cyan)', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem', transition: 'all 0.2s' }}
+                >
+                  🧪 Generar Evento de Prueba
+                </button>
+              </div>
 
               {/* Selector de evento */}
               <div className="glass-card" style={{ marginBottom: '2rem', padding: '1.5rem' }}>
@@ -1112,45 +1142,98 @@ export default function AdminClient({ events }: { events: Event[] }) {
               {/* Resultados */}
               {matchResults && (
                 <div className="glass-card" style={{ padding: '1.5rem', border: '1px solid rgba(57,255,20,0.2)' }}>
-                  <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-                    <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>💘</div>
-                    <h3 style={{ color: matchResults.totalMatches > 0 ? 'var(--neon-green)' : 'var(--text-muted)', fontSize: '1.5rem' }}>
-                      {matchResults.totalMatches > 0 ? `🎉 ${matchResults.totalMatches} Match${matchResults.totalMatches > 1 ? 'es' : ''} encontrado${matchResults.totalMatches > 1 ? 's' : ''}!` : 'No hubo matches esta vez 😢'}
+                  {/* Header con stats */}
+                  <div style={{ textAlign: 'center', marginBottom: '2rem', padding: '1.5rem', background: matchResults.totalMatches > 0 ? 'rgba(57,255,20,0.05)' : 'rgba(255,255,255,0.02)', borderRadius: '12px' }}>
+                    <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>{matchResults.totalMatches > 0 ? '🎉' : '😢'}</div>
+                    <h3 style={{ color: matchResults.totalMatches > 0 ? 'var(--neon-green)' : 'var(--text-muted)', fontSize: '1.5rem', marginBottom: '0.5rem' }}>
+                      {matchResults.totalMatches > 0 ? `${matchResults.totalMatches} Match${matchResults.totalMatches > 1 ? 'es' : ''} encontrado${matchResults.totalMatches > 1 ? 's' : ''}!` : 'No hubo matches esta vez'}
                     </h3>
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: '2rem', marginTop: '1rem' }}>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--neon-green)' }}>{matchResults.summary.filter((s: any) => s.matches.length > 0).length}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Con match</div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--text-muted)' }}>{matchResults.summary.filter((s: any) => s.matches.length === 0).length}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Sin match</div>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Resumen por participante */}
-                  <h4 style={{ color: 'var(--neon-pink)', marginBottom: '1rem', fontSize: '1rem' }}>Resumen por Participante</h4>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    {matchResults.summary.map((item: any) => (
-                      <div key={item.person.id} style={{
-                        padding: '1rem', borderRadius: '10px',
-                        background: item.matches.length > 0 ? 'rgba(57,255,20,0.06)' : 'rgba(255,255,255,0.03)',
-                        border: item.matches.length > 0 ? '1px solid rgba(57,255,20,0.2)' : '1px solid rgba(255,255,255,0.05)',
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: item.matches.length > 0 ? '0.75rem' : 0, flexWrap: 'wrap', gap: '0.5rem' }}>
-                          <span style={{ fontWeight: 700, color: 'white', fontSize: '0.95rem' }}>
-                            {item.person.gender === 'Hombre' ? '🙋‍♂️' : '🙋‍♀️'} {item.person.firstName} {item.person.lastName}
-                          </span>
-                          {item.matches.length > 0 ? (
-                            <span style={{ color: 'var(--neon-green)', fontSize: '0.85rem', fontWeight: 600 }}>❤️ {item.matches.length} match{item.matches.length > 1 ? 'es' : ''}</span>
-                          ) : (
-                            <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Sin match</span>
-                          )}
-                        </div>
-                        {item.matches.length > 0 && (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', paddingLeft: '1.5rem' }}>
-                            {item.matches.map((m: any) => (
-                              <div key={m.id} style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                                ↔ <span style={{ color: 'white' }}>{m.firstName} {m.lastName}</span>
-                                {m.email && <span style={{ color: 'var(--neon-cyan)', marginLeft: '0.5rem' }}>({m.email})</span>}
+                  {/* Sección: CON MATCH */}
+                  {matchResults.summary.filter((s: any) => s.matches.length > 0).length > 0 && (
+                    <div style={{ marginBottom: '2rem' }}>
+                      <h4 style={{ color: 'var(--neon-green)', marginBottom: '1rem', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        ❤️ Participantes con Match
+                      </h4>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {matchResults.summary.filter((item: any) => item.matches.length > 0).map((item: any) => (
+                          <div key={item.person.id} style={{
+                            padding: '1.25rem', borderRadius: '12px',
+                            background: 'rgba(57,255,20,0.06)',
+                            border: '1px solid rgba(57,255,20,0.2)',
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                              <span style={{ fontWeight: 700, color: 'white', fontSize: '1rem' }}>
+                                {item.person.gender === 'Hombre' ? '🙋‍♂️' : '🙋‍♀️'} {item.person.firstName} {item.person.lastName}
+                              </span>
+                              <span style={{ background: 'rgba(57,255,20,0.15)', color: 'var(--neon-green)', padding: '0.2rem 0.75rem', borderRadius: '50px', fontSize: '0.8rem', fontWeight: 600 }}>
+                                {item.matches.length} match{item.matches.length > 1 ? 'es' : ''}
+                              </span>
+                            </div>
+                            {item.person.email && (
+                              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+                                📧 {item.person.email}
                               </div>
-                            ))}
+                            )}
+                            <div style={{ background: 'rgba(0,0,0,0.3)', padding: '0.75rem', borderRadius: '8px' }}>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--neon-pink)', marginBottom: '0.5rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                Hizo match con:
+                              </div>
+                              {item.matches.map((m: any, idx: number) => (
+                                <div key={m.id} style={{
+                                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                  padding: '0.5rem 0',
+                                  borderBottom: idx < item.matches.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                                  flexWrap: 'wrap', gap: '0.25rem'
+                                }}>
+                                  <span style={{ color: 'white', fontWeight: 600, fontSize: '0.9rem' }}>
+                                    💘 {m.firstName} {m.lastName}
+                                  </span>
+                                  {m.email && (
+                                    <span style={{ color: 'var(--neon-cyan)', fontSize: '0.8rem' }}>
+                                      {m.email}
+                                    </span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                        )}
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  )}
+
+                  {/* Sección: SIN MATCH */}
+                  {matchResults.summary.filter((s: any) => s.matches.length === 0).length > 0 && (
+                    <div>
+                      <h4 style={{ color: 'var(--text-muted)', marginBottom: '1rem', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        Sin Match
+                      </h4>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                        {matchResults.summary.filter((item: any) => item.matches.length === 0).map((item: any) => (
+                          <div key={item.person.id} style={{
+                            padding: '0.6rem 1rem', borderRadius: '8px',
+                            background: 'rgba(255,255,255,0.03)',
+                            border: '1px solid rgba(255,255,255,0.05)',
+                            fontSize: '0.85rem', color: 'var(--text-muted)',
+                          }}>
+                            {item.person.gender === 'Hombre' ? '🙋‍♂️' : '🙋‍♀️'} {item.person.firstName} {item.person.lastName[0]}.
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
