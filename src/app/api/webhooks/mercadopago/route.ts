@@ -59,21 +59,21 @@ export async function POST(request: Request) {
               const { sendWhatsApp, getAdminWhatsAppText } = await import('@/lib/whatsapp');
               const { sendPushNotification } = await import('@/lib/push');
 
-              sendPushNotification(
-                'Pago Confirmado (MP) 💰',
-                `${existing.firstName} ${existing.lastName} pagó su entrada para ${eventInfo.type}.`
-              );
-
-              sendEmail(
-                'smoyano1988@gmail.com',
-                `Pago Confirmado - ${eventInfo.type}`,
-                getAdminNotificationHtml(existing.firstName, existing.lastName, eventInfo.type, eventDateStr, existing.email, existing.phone, 'MercadoPago', true)
-              );
-
-              sendWhatsApp(
-                '+59897183275',
-                getAdminWhatsAppText(existing.firstName, existing.lastName, eventInfo.type, eventDateStr, existing.email, existing.phone, 'MercadoPago', true)
-              );
+              await Promise.all([
+                sendPushNotification(
+                  'Pago Confirmado (MP) 💰',
+                  `${existing.firstName} ${existing.lastName} pagó su entrada para ${eventInfo.type}.`
+                ),
+                sendEmail(
+                  'smoyano1988@gmail.com',
+                  `Pago Confirmado - ${eventInfo.type}`,
+                  getAdminNotificationHtml(existing.firstName, existing.lastName, eventInfo.type, eventDateStr, existing.email, existing.phone, 'MercadoPago', true)
+                ),
+                sendWhatsApp(
+                  '+59897183275',
+                  getAdminWhatsAppText(existing.firstName, existing.lastName, eventInfo.type, eventDateStr, existing.email, existing.phone, 'MercadoPago', true)
+                ),
+              ]);
             }
           } catch (notifError) {
             console.error('Error enviando notificaciones de pago:', notifError);

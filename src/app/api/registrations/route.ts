@@ -117,36 +117,37 @@ export async function POST(request: Request) {
     const { sendPushNotification } = await import('@/lib/push');
 
     // --- NOTIFICACIÓN INMEDIATA AL ADMIN ---
-    // Esto llega apenas se registran, sea MP o Transferencia
-    sendPushNotification(
-      `Nuevo Registro - ${eventName}`, 
-      `${firstName} ${lastName} se registró. (${paymentMethod === 'mercadopago' ? 'MP' : 'Transfer'})`
-    );
-    sendEmail(
-      'smoyano1988@gmail.com',
-      `Nuevo Registro en Kerop - ${eventName}`,
-      getAdminNotificationHtml(firstName, lastName, eventName, eventDateStr, email, phone, paymentMethod === 'mercadopago' ? 'MercadoPago' : 'Transferencia', false)
-    );
-    sendWhatsApp(
-      '+59897183275', // Corregido formato (sin el 0)
-      getAdminWhatsAppText(firstName, lastName, eventName, eventDateStr, email, phone, paymentMethod === 'mercadopago' ? 'MercadoPago' : 'Transferencia', false)
-    );
+    // IMPORTANTE: usar await Promise.all() — en Vercel serverless las promesas sin await
+    // se cortan cuando retorna el NextResponse, por eso llegaban tarde.
+    await Promise.all([
+      sendPushNotification(
+        `Nuevo Registro - ${eventName}`,
+        `${firstName} ${lastName} se registró. (${paymentMethod === 'mercadopago' ? 'MP' : 'Transfer'})`
+      ),
+      sendEmail(
+        'smoyano1988@gmail.com',
+        `Nuevo Registro en Kerop - ${eventName}`,
+        getAdminNotificationHtml(firstName, lastName, eventName, eventDateStr, email, phone, paymentMethod === 'mercadopago' ? 'MercadoPago' : 'Transferencia', false)
+      ),
+      sendWhatsApp(
+        '+59897183275',
+        getAdminWhatsAppText(firstName, lastName, eventName, eventDateStr, email, phone, paymentMethod === 'mercadopago' ? 'MercadoPago' : 'Transferencia', false)
+      ),
+    ]);
 
     // Si eligió transferencia, notificar al usuario y terminar
     if (paymentMethod === "transfer") {
-      if (email) {
-        sendEmail(
+      await Promise.all([
+        email ? sendEmail(
           email,
           `¡Registro Iniciado en Kerop! - ${eventName}`,
           getRegistrationEmailHtml(firstName, eventName, eventDateStr, 'transfer', event.price)
-        );
-      }
-      if (phone) {
-        sendWhatsApp(
+        ) : Promise.resolve(),
+        phone ? sendWhatsApp(
           phone,
           getRegistrationWhatsAppText(firstName, eventName, eventDateStr, 'transfer', event.price)
-        );
-      }
+        ) : Promise.resolve(),
+      ]);
 
       return NextResponse.json({
         registration,
@@ -206,19 +207,17 @@ export async function POST(request: Request) {
       );
 
       // --- NOTIFICACIÓN AL USUARIO CON LINK DE PAGO ---
-      if (email) {
-        sendEmail(
+      await Promise.all([
+        email ? sendEmail(
           email,
           `Completa tu pago - Kerop ${eventName}`,
           getRegistrationEmailHtml(firstName, eventName, eventDateStr, 'mercadopago', event.price, initPoint)
-        );
-      }
-      if (phone) {
-        sendWhatsApp(
+        ) : Promise.resolve(),
+        phone ? sendWhatsApp(
           phone,
           getRegistrationWhatsAppText(firstName, eventName, eventDateStr, 'mercadopago', event.price, initPoint)
-        );
-      }
+        ) : Promise.resolve(),
+      ]);
 
       return NextResponse.json({
         registration,
