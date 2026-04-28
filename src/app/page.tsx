@@ -36,7 +36,7 @@ export default function Home() {
         </div>
 
         <div className="container hero-grid" style={{ position: 'relative', zIndex: 1 }}>
-          <div>
+          <div className="hero-text-enter">
             {/* Logo */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginBottom: '2rem' }}>
               <div style={{ position: 'relative' }}>
@@ -53,8 +53,8 @@ export default function Home() {
             </div>
 
             <h1 style={{ fontSize: 'clamp(3rem, 7vw, 5.5rem)', lineHeight: 1.05, marginBottom: '1.5rem', fontWeight: 800 }}>
-              Tu <span className="text-pink">refugio</span> de<br />
-              café, arte y <span className="text-green">tinta.</span>
+              Tu <span className="text-pink hero-glow-pink">refugio</span> de<br />
+              café, arte y <span className="text-green hero-glow-green">tinta.</span>
             </h1>
             <p style={{ fontSize: '1.2rem', color: 'var(--text-muted)', maxWidth: '520px', lineHeight: 1.8, marginBottom: '2.5rem' }}>
               Pastelería vegana de autor, los mejores alfajores de Montevideo y dos tatuadores residentes de primer nivel.
@@ -66,7 +66,7 @@ export default function Home() {
           </div>
 
           {/* Quick Info Card */}
-          <div className="glass-card hero-card" style={{ textAlign: 'center', position: 'relative' }}>
+          <div className="glass-card hero-card hero-card-enter" style={{ textAlign: 'center', position: 'relative' }}>
 
             <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>☕</div>
             <h3 style={{ fontSize: '1.3rem', marginBottom: '1rem' }}>Horarios</h3>
@@ -76,7 +76,7 @@ export default function Home() {
               <p><span style={{ color: 'white' }}>Dom</span> 13 a 20h</p>
             </div>
             <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', margin: '1.25rem 0' }} />
-            <Link href="/eventos" className="btn btn-primary" style={{ width: '100%', fontSize: '0.95rem', padding: '0.85rem' }}>
+            <Link href="/eventos" className="btn btn-primary btn-pulse" style={{ width: '100%', fontSize: '0.95rem', padding: '0.85rem' }}>
               Speed Dating 🔥
             </Link>
           </div>
@@ -85,10 +85,10 @@ export default function Home() {
 
       {/* ─── MENÚ ALFAJORES ─── */}
       <section id="menu" style={{ padding: '6rem 0', position: 'relative' }}>
-        <div style={{ position: 'absolute', top: '10%', left: '-5%', width: '350px', height: '350px', background: 'var(--neon-pink)', filter: 'blur(130px)', opacity: 0.08, zIndex: 0 }} />
+        <div className="floating-blob" style={{ position: 'absolute', top: '10%', left: '-5%', width: '350px', height: '350px', background: 'var(--neon-pink)', filter: 'blur(130px)', opacity: 0.08, zIndex: 0 }} />
 
         <div className="container" style={{ position: 'relative', zIndex: 1 }}>
-          <div style={{ marginBottom: '3.5rem' }}>
+          <div className="reveal" style={{ marginBottom: '3.5rem' }}>
             <p className="text-pink" style={{ textTransform: 'uppercase', letterSpacing: '4px', fontSize: '0.85rem', marginBottom: '0.75rem' }}>Nuestras Especialidades</p>
             <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)' }}>Alfajores de Autor</h2>
             <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>Cada uno es una obra. Hechos a mano, el mismo día.</p>
@@ -96,7 +96,7 @@ export default function Home() {
 
           <div className="grid-3">
             {alfajores.map((item, i) => (
-              <div key={i} className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
+              <div key={i} className={`glass-card reveal reveal-delay-${i + 1}`} style={{ padding: 0, overflow: 'hidden' }}>
                 <div style={{ height: '220px', position: 'relative', overflow: 'hidden' }}>
                   <Image src={item.img} alt={item.name} fill style={{ objectFit: 'cover' }} className="card-img" />
                   <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 60%)' }} />
@@ -113,16 +113,16 @@ export default function Home() {
 
       {/* ─── VEGANO & SALADOS ─── */}
       <section style={{ padding: '4rem 0 6rem', position: 'relative' }}>
-        <div style={{ position: 'absolute', bottom: '10%', right: '-5%', width: '350px', height: '350px', background: 'var(--neon-green)', filter: 'blur(130px)', opacity: 0.07, zIndex: 0 }} />
+        <div className="floating-blob" style={{ position: 'absolute', bottom: '10%', right: '-5%', width: '350px', height: '350px', background: 'var(--neon-green)', filter: 'blur(130px)', opacity: 0.07, zIndex: 0 }} />
         <div className="container" style={{ position: 'relative', zIndex: 1 }}>
-          <div style={{ marginBottom: '3.5rem' }}>
+          <div className="reveal" style={{ marginBottom: '3.5rem' }}>
             <p className="text-green" style={{ textTransform: 'uppercase', letterSpacing: '4px', fontSize: '0.85rem', marginBottom: '0.75rem' }}>Cocina de Autor</p>
             <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)' }}>Vegano & Salados 🌱</h2>
             <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>Opciones que cuidan el planeta sin resignar sabor.</p>
           </div>
           <div className="grid-3">
             {salados.map((item, i) => (
-              <div key={i} className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
+              <div key={i} className={`glass-card reveal reveal-delay-${Math.min(i + 1, 5)}`} style={{ padding: 0, overflow: 'hidden' }}>
                 <div style={{ height: '220px', position: 'relative', overflow: 'hidden' }}>
                   <Image src={item.img} alt={item.name} fill style={{ objectFit: 'cover' }} className="card-img" />
                   <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 60%)' }} />
@@ -140,14 +140,14 @@ export default function Home() {
       {/* ─── CAFÉ ─── */}
       <section style={{ padding: '4rem 0 6rem' }}>
         <div className="container">
-          <div style={{ marginBottom: '3.5rem' }}>
+          <div className="reveal" style={{ marginBottom: '3.5rem' }}>
             <p className="text-cyan" style={{ textTransform: 'uppercase', letterSpacing: '4px', fontSize: '0.85rem', marginBottom: '0.75rem' }}>Café de Especialidad</p>
             <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)' }}>Bebidas</h2>
             <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>Granos de origen seleccionados. Preparación de autor.</p>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2rem' }}>
             {bebidas.map((item, i) => (
-              <div key={i} className="glass-card" style={{ display: 'flex', gap: '1.25rem', alignItems: 'center' }}>
+              <div key={i} className={`glass-card reveal reveal-delay-${i + 1}`} style={{ display: 'flex', gap: '1.25rem', alignItems: 'center' }}>
                 <div style={{ width: '80px', height: '80px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0, border: '2px solid rgba(0,255,255,0.3)', position: 'relative' }}>
                   <Image src={item.img} alt={item.name} fill style={{ objectFit: 'cover' }} />
                 </div>
@@ -164,7 +164,7 @@ export default function Home() {
       {/* ─── SPEED DATING PROMO ─── */}
       <section style={{ padding: '4rem 0 6rem' }}>
         <div className="container">
-          <div className="glass-card promo-card" style={{ background: 'linear-gradient(135deg, rgba(255,16,122,0.15) 0%, rgba(0,0,0,0.4) 100%)', border: '1px solid rgba(255,16,122,0.3)' }}>
+          <div className="glass-card promo-card reveal-scale reveal" style={{ background: 'linear-gradient(135deg, rgba(255,16,122,0.15) 0%, rgba(0,0,0,0.4) 100%)', border: '1px solid rgba(255,16,122,0.3)' }}>
             <div>
               <p className="text-pink" style={{ textTransform: 'uppercase', letterSpacing: '4px', fontSize: '0.85rem', marginBottom: '0.75rem' }}>Evento Especial</p>
               <h2 style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.8rem)', marginBottom: '1rem' }}>Speed Dating en Kerop 💘</h2>
@@ -173,7 +173,7 @@ export default function Home() {
               </p>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <Link href="/eventos" className="btn btn-primary" style={{ whiteSpace: 'nowrap' }}>Ver Fechas →</Link>
+              <Link href="/eventos" className="btn btn-primary btn-pulse" style={{ whiteSpace: 'nowrap' }}>Ver Fechas →</Link>
             </div>
           </div>
         </div>
@@ -182,7 +182,7 @@ export default function Home() {
       {/* ─── TATTOO PROMO ─── */}
       <section style={{ padding: '0 0 6rem' }}>
         <div className="container">
-          <div className="glass-card promo-card" style={{ background: 'linear-gradient(135deg, rgba(0,255,255,0.08) 0%, rgba(0,0,0,0.4) 100%)', border: '1px solid rgba(0,255,255,0.2)' }}>
+          <div className="glass-card promo-card reveal-scale reveal" style={{ background: 'linear-gradient(135deg, rgba(0,255,255,0.08) 0%, rgba(0,0,0,0.4) 100%)', border: '1px solid rgba(0,255,255,0.2)' }}>
             <div>
               <p className="text-cyan" style={{ textTransform: 'uppercase', letterSpacing: '4px', fontSize: '0.85rem', marginBottom: '0.75rem' }}>Residentes</p>
               <h2 style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.8rem)', marginBottom: '1rem' }}>Tattoo Studio en el Local</h2>
@@ -202,7 +202,7 @@ export default function Home() {
         <div className="container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <Image src="/img/logo.png" alt="Kerop" width={36} height={36} style={{ borderRadius: '50%' }} />
-            <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>© 2024 Kerop. Pérez Castellano 1495, Ciudad Vieja.</span>
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>© {new Date().getFullYear()} Kerop. Pérez Castellano 1495, Ciudad Vieja.</span>
           </div>
           <Link href="/admin" style={{ color: 'var(--text-muted)', fontSize: '0.85rem', opacity: 0.5 }}>
             Panel Admin

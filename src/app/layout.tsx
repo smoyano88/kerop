@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { Inter, Outfit } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
+import Preloader from "@/components/Preloader";
+import ScrollReveal from "@/components/ScrollReveal";
+import NavbarScroll from "@/components/NavbarScroll";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -35,6 +38,9 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/img/logo.png" />
       </head>
       <body suppressHydrationWarning>
+        <Preloader />
+        <ScrollReveal />
+        <NavbarScroll />
         <nav className="navbar">
           <div className="container nav-content">
             <Link href="/" className="text-pink" style={{ fontSize: '1.5rem', fontFamily: 'var(--font-outfit)', fontWeight: 700, letterSpacing: '2px' }}>

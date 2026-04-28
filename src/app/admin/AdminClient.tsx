@@ -975,44 +975,58 @@ export default function AdminClient({ events }: { events: Event[] }) {
             <div style={{ marginBottom: '2rem' }}>
               <h4 style={{ color: 'var(--neon-pink)', marginBottom: '1rem', fontSize: '1.1rem' }}>{title}</h4>
               <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: `${colParticipants.length * 90 + 140}px` }}>
+                <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: `${colParticipants.length * 90 + 180}px` }}>
                   <thead>
                     <tr>
-                      <th style={{ padding: '0.75rem', textAlign: 'left', borderBottom: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,16,122,0.08)', color: 'var(--neon-pink)', fontSize: '0.8rem', position: 'sticky', left: 0, zIndex: 2, minWidth: '130px' }}>
-                        Participante
+                      <th style={{ padding: '0.75rem', textAlign: 'left', borderBottom: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,16,122,0.08)', color: 'var(--neon-pink)', fontSize: '0.8rem', position: 'sticky', left: 0, zIndex: 2, minWidth: '170px' }}>
+                        <span style={{ marginLeft: '2.25rem' }}>Participante</span>
                       </th>
-                      {colParticipants.map(col => (
-                        <th key={col.id} style={{ padding: '0.5rem', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,16,122,0.05)', fontSize: '0.75rem', color: 'white', minWidth: '80px', lineHeight: 1.2 }}>
-                          {col.firstName}<br/><span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>{col.lastName}</span>
-                        </th>
-                      ))}
+                      {colParticipants.map(col => {
+                        const colNotAttended = col.attended === false;
+                        return (
+                          <th key={col.id} style={{ padding: '0.5rem', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,16,122,0.05)', fontSize: '0.75rem', color: colNotAttended ? 'rgba(255,255,255,0.25)' : 'white', minWidth: '80px', lineHeight: 1.2, opacity: colNotAttended ? 0.35 : 1 }}>
+                            {col.firstName}<br/><span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>{col.lastName}</span>
+                          </th>
+                        );
+                      })}
                     </tr>
                   </thead>
                   <tbody>
                     {rowParticipants.map(row => {
                       const notAttended = row.attended === false;
                       return (
-                        <tr key={row.id} style={{ opacity: notAttended ? 0.3 : 1, textDecoration: notAttended ? 'line-through' : 'none' }}>
-                          <td style={{ padding: '0.6rem 0.75rem', borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.3)', position: 'sticky', left: 0, zIndex: 1, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <button
-                              onClick={() => handleToggleAttended(row.id)}
-                              title={notAttended ? 'Marcar como asistió' : 'Marcar como NO asistió'}
-                              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.9rem', padding: 0 }}
-                            >
-                              {notAttended ? '❌' : '✅'}
-                            </button>
-                            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'white' }}>{row.firstName} {row.lastName[0]}.</span>
+                        <tr key={row.id} style={{ transition: 'opacity 0.2s' }}>
+                          <td style={{ padding: '0.6rem 0.75rem', borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.3)', position: 'sticky', left: 0, zIndex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <div
+                                onClick={() => handleToggleAttended(row.id)}
+                                title={notAttended ? 'Marcar como asistió' : 'Marcar como NO asistió'}
+                                style={{
+                                  width: '24px', height: '24px', borderRadius: '6px', cursor: 'pointer', flexShrink: 0,
+                                  border: notAttended ? '2px solid rgba(255,80,80,0.6)' : '2px solid rgba(57,255,20,0.4)',
+                                  background: notAttended ? 'rgba(255,80,80,0.2)' : 'rgba(57,255,20,0.1)',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  transition: 'all 0.15s', fontSize: '0.7rem'
+                                }}
+                              >
+                                {notAttended ? '✕' : '✓'}
+                              </div>
+                              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: notAttended ? 'rgba(255,255,255,0.3)' : 'white', textDecoration: notAttended ? 'line-through' : 'none', transition: 'all 0.2s' }}>
+                                {row.firstName} {row.lastName[0]}.
+                              </span>
+                            </div>
                           </td>
                           {colParticipants.map(col => {
                             if (row.id === col.id) return (
-                              <td key={col.id} style={{ textAlign: 'center', padding: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.02)' }}>
+                              <td key={col.id} style={{ textAlign: 'center', padding: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.02)', opacity: notAttended ? 0.2 : 1 }}>
                                 <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>—</span>
                               </td>
                             );
                             const isSelected = (matchSelections[row.id] || []).includes(col.id);
-                            const isDisabled = notAttended || col.attended === false;
+                            const colNotAttended = col.attended === false;
+                            const isDisabled = notAttended || colNotAttended;
                             return (
-                              <td key={col.id} style={{ textAlign: 'center', padding: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)', cursor: isDisabled ? 'not-allowed' : 'pointer', background: isSelected ? 'rgba(255,16,122,0.15)' : 'transparent', transition: 'background 0.2s' }}
+                              <td key={col.id} style={{ textAlign: 'center', padding: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)', cursor: isDisabled ? 'not-allowed' : 'pointer', background: isSelected && !isDisabled ? 'rgba(255,16,122,0.15)' : 'transparent', transition: 'background 0.2s', opacity: isDisabled ? 0.2 : 1 }}
                                 onClick={() => !isDisabled && toggleSelection(row.id, col.id)}
                               >
                                 <div style={{
@@ -1022,7 +1036,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
                                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                                   transition: 'all 0.15s', fontSize: '0.8rem'
                                 }}>
-                                  {isSelected && '💘'}
+                                  {isSelected && !isDisabled && '💘'}
                                 </div>
                               </td>
                             );
@@ -1109,15 +1123,15 @@ export default function AdminClient({ events }: { events: Event[] }) {
                   </div>
 
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '1.5rem', background: 'rgba(255,255,255,0.03)', padding: '0.75rem', borderRadius: '8px' }}>
-                    📋 Leé la planilla de cada participante y tildá a quién le puso match. Usá ✅/❌ para marcar si alguien no asistió.
+                    📋 Leé la planilla de cada participante y tildá a quién le puso match. Tocá el <span style={{ color: 'var(--neon-green)' }}>✓</span> para marcar a alguien que no asistió (queda gris).
                   </p>
 
                   {isHomoEvent && allParticipants ? (
-                    renderMatrix(allParticipants.filter(r => r.attended !== false), allParticipants.filter(r => r.attended !== false), `${selectedEvent.type} — Todos × Todos`)
+                    renderMatrix(allParticipants, allParticipants, `${selectedEvent.type} — Todos × Todos`)
                   ) : (
                     <>
-                      {renderMatrix(men.filter(r => r.attended !== false), women.filter(r => r.attended !== false), '🙋‍♂️ Hombres → Mujeres (¿a quién le puso match?)')}
-                      {renderMatrix(women.filter(r => r.attended !== false), men.filter(r => r.attended !== false), '🙋‍♀️ Mujeres → Hombres (¿a quién le puso match?)')}
+                      {renderMatrix(men, women, '🙋‍♂️ Hombres → Mujeres (¿a quién le puso match?)')}
+                      {renderMatrix(women, men, '🙋‍♀️ Mujeres → Hombres (¿a quién le puso match?)')}
                     </>
                   )}
 
