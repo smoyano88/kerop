@@ -343,7 +343,7 @@ function RegistrationModal({ event, onClose }: { event: Event, onClose: () => vo
               </div>
               <div style={{ flex: 1, minWidth: '200px' }}>
                 <label className="input-label">Celular (WhatsApp)</label>
-                <input type="tel" name="phone" className="input-field" placeholder="+598 9X XXX XXX" defaultValue="+598" />
+                <input type="tel" name="phone" className="input-field" placeholder="Ej: +598 9X XXX XXX o +54 9 11 XXXX XXXX" />
               </div>
             </div>
 

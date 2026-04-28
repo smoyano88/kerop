@@ -16,32 +16,42 @@ export const sendWhatsApp = async (to: string, message: string) => {
     cleanPhone = '598' + cleanPhone.substring(4);
   }
 
+  // Validar que el número tenga al menos 8 dígitos (descarta "+598" solo sin número real)
+  if (cleanPhone.length < 8) {
+    console.log(`⚠️ WhatsApp no enviado: número inválido o incompleto → "${to}" (limpiado: "${cleanPhone}")`);
+    return;
+  }
+
+  const chatId = `${cleanPhone}@c.us`;
+  console.log(`📱 Enviando WhatsApp a chatId: ${chatId}`);
+
   try {
     // Green API usa este formato de URL con POST
     const url = `https://api.green-api.com/waInstance${idInstance}/sendMessage/${apiToken}`;
-    
+
     const res = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        chatId: `${cleanPhone}@c.us`,
-        message: message
+        chatId,
+        message
       })
     });
 
     const responseData = await res.json();
 
     if (!res.ok) {
-      console.error('❌ Error API WhatsApp (Green API):', responseData);
+      console.error(`❌ Error API WhatsApp (Green API) para ${chatId}:`, JSON.stringify(responseData));
     } else {
-      console.log('✅ WhatsApp enviado a', to, '| Ref:', responseData.idMessage);
+      console.log(`✅ WhatsApp enviado a ${chatId} | Ref:`, responseData.idMessage);
     }
   } catch (error) {
     console.error('❌ Error enviando WhatsApp:', error);
   }
 };
+
 
 export const getRegistrationWhatsAppText = (
   firstName: string, 
