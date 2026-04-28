@@ -212,35 +212,61 @@ export default function AdminClient({ events }: { events: Event[] }) {
     }
   };
 
+  // Convierte una clave VAPID base64url a ArrayBuffer (requerido por todos los browsers)
+  const urlBase64ToUint8Array = (base64String: string): ArrayBuffer => {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray.buffer as ArrayBuffer;
+  };
+
   const subscribeToPush = async () => {
     try {
       setLoading(true);
-      
-      if (!('serviceWorker' in navigator)) {
-        throw new Error('Este navegador no soporta notificaciones Push.');
+
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        throw new Error('Este navegador no soporta notificaciones Push. Probá con Chrome o Firefox.');
       }
 
-      // 1. Registrar y esperar a que esté listo
+      // 1. Solicitar permiso explícito
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        throw new Error('Permiso de notificaciones denegado. Habilitalo en la configuración del navegador.');
+      }
+
+      // 2. Registrar SW y esperar a que esté listo
       await navigator.serviceWorker.register('/sw.js');
       const registration = await navigator.serviceWorker.ready;
 
-      // 2. Obtener clave pública
+      // 3. Obtener clave pública VAPID y convertirla a Uint8Array
       const publicVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
       if (!publicVapidKey) {
-        throw new Error('Error: No se encontró la clave pública VAPID.');
+        throw new Error('Error de configuración: No se encontró la clave pública VAPID.');
+      }
+      const convertedKey = urlBase64ToUint8Array(publicVapidKey);
+
+      // 4. Verificar si ya hay una suscripción activa
+      let subscription = await registration.pushManager.getSubscription();
+      if (subscription) {
+        // Ya existe — la re-enviamos al servidor para sincronizar
+        console.log('ℹ️ Ya había una suscripción Push, actualizando en servidor...');
+      } else {
+        // 5. Crear nueva suscripción
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: convertedKey,
+        });
       }
 
-      // 3. Suscribirse
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: publicVapidKey
-      });
-
-      // 4. Guardar en el servidor
+      // 6. Guardar/actualizar en el servidor
       const res = await fetch('/api/push-subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subscription, password: currentAdminPassword })
+        body: JSON.stringify({ subscription, password: currentAdminPassword }),
       });
 
       if (!res.ok) {
@@ -248,7 +274,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
         throw new Error(errData.error || 'Error al guardar la suscripción');
       }
 
-      showSuccess('✅ ¡Listo! Este dispositivo recibirá notificaciones.');
+      showSuccess('✅ ¡Listo! Este dispositivo recibirá notificaciones push.');
     } catch (err: any) {
       console.error('Push error:', err);
       setError(err.message || 'Error activando notificaciones');

@@ -1,40 +1,42 @@
 export const sendWhatsApp = async (to: string, message: string) => {
-  const apiUrl = process.env.WHATSAPP_API_URL;
-  const apiToken = process.env.WHATSAPP_API_TOKEN;
+  const idInstance = process.env.GREEN_API_ID_INSTANCE;
+  const apiToken = process.env.GREEN_API_TOKEN_INSTANCE;
 
-  if (!apiUrl || !apiToken) {
-    console.log('⚠️ WhatsApp no enviado: Faltan credenciales (WHATSAPP_API_URL y WHATSAPP_API_TOKEN) en .env');
+  if (!idInstance || !apiToken) {
+    console.log('⚠️ WhatsApp no enviado: Faltan credenciales de Green API en .env');
     console.log(`📱 To: ${to}\n📝 Mensaje:\n${message}\n-------------------`);
     return;
   }
 
-  // Limpiar el número (quitar +, espacios, guiones)
+  // Limpiar el número (solo dígitos)
   let cleanPhone = to.replace(/\D/g, '');
 
-  // Corrección para Uruguay: Si empieza con 59809, quitar el 0 -> 5989
+  // Corrección para Uruguay: Si empieza con 5980X, quitar el 0 duplicado → 598X
   if (cleanPhone.startsWith('5980')) {
     cleanPhone = '598' + cleanPhone.substring(4);
   }
 
   try {
-    // Ejemplo genérico para APIs como UltraMsg o similares que usan POST con JSON
-    // Si terminás usando Twilio u oficial de Meta, este fetch se adapta fácilmente.
-    const res = await fetch(apiUrl, {
+    // Green API usa este formato de URL con POST
+    const url = `https://api.green-api.com/waInstance${idInstance}/sendMessage/${apiToken}`;
+    
+    const res = await fetch(url, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiToken}` // O el método de auth de tu proveedor
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        to: cleanPhone,
-        body: message
+        chatId: `${cleanPhone}@c.us`,
+        message: message
       })
     });
 
+    const responseData = await res.json();
+
     if (!res.ok) {
-      console.error('❌ Error API WhatsApp:', await res.text());
+      console.error('❌ Error API WhatsApp (Green API):', responseData);
     } else {
-      console.log('✅ WhatsApp enviado a', to);
+      console.log('✅ WhatsApp enviado a', to, '| Ref:', responseData.idMessage);
     }
   } catch (error) {
     console.error('❌ Error enviando WhatsApp:', error);
