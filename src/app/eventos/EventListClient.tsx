@@ -205,11 +205,10 @@ function RegistrationModal({ event, onClose }: { event: Event, onClose: () => vo
     setError('');
 
     const formData = new FormData(e.currentTarget);
-    const email = formData.get('email');
-    const phone = formData.get('phone');
+    const email = formData.get('email') as string;
 
-    if (!email && !phone) {
-      setError('Por favor ingresá un Email o un Celular para poder contactarte.');
+    if (!email) {
+      setError('Por favor ingresá un Email para poder contactarte.');
       setLoading(false);
       return;
     }
@@ -218,7 +217,7 @@ function RegistrationModal({ event, onClose }: { event: Event, onClose: () => vo
       firstName: formData.get('firstName'),
       lastName: formData.get('lastName'),
       email: email || null,
-      phone: phone || null,
+      phone: null,
       gender: formData.get('gender'),
       selectedDrink: formData.get('selectedDrink'),
       eventId: event.id,
@@ -333,18 +332,9 @@ function RegistrationModal({ event, onClose }: { event: Event, onClose: () => vo
               </div>
             </div>
 
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem', textAlign: 'center' }}>
-              Completá al menos un medio de contacto para enviarte los detalles.
-            </p>
-            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-              <div style={{ flex: 1, minWidth: '200px' }}>
-                <label className="input-label">Email</label>
-                <input type="email" name="email" className="input-field" placeholder="tu@email.com" />
-              </div>
-              <div style={{ flex: 1, minWidth: '200px' }}>
-                <label className="input-label">Celular (WhatsApp)</label>
-                <input type="tel" name="phone" className="input-field" placeholder="Ej: +598 9X XXX XXX o +54 9 11 XXXX XXXX" />
-              </div>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label className="input-label">Email</label>
+              <input type="email" name="email" required className="input-field" placeholder="tu@email.com" />
             </div>
 
             {event.type === 'Ellas y Ellas' ? (
