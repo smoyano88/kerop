@@ -45,6 +45,7 @@ export async function POST(request: Request) {
       paymentMethod,
       email,
       phone,
+      instagram,
     } = body;
 
     // 0. Validar Cupos (Backend Strict Check)
@@ -100,6 +101,9 @@ export async function POST(request: Request) {
         eventId,
         paid: false,
         paymentMethod,
+        email: email || null,
+        phone: phone || null,
+        instagram: instagram || null,
       },
       include: { event: true },
     });
@@ -127,11 +131,11 @@ export async function POST(request: Request) {
       sendEmail(
         'smoyano1988@gmail.com',
         `Nuevo Registro en Kerop - ${eventName}`,
-        getAdminNotificationHtml(firstName, lastName, eventName, eventDateStr, email, phone, paymentMethod === 'mercadopago' ? 'MercadoPago' : 'Transferencia', false)
+        getAdminNotificationHtml(firstName, lastName, eventName, eventDateStr, email, phone, paymentMethod === 'mercadopago' ? 'MercadoPago' : 'Transferencia', false, instagram)
       ),
       sendWhatsApp(
         '+59897183275',
-        getAdminWhatsAppText(firstName, lastName, eventName, eventDateStr, email, phone, paymentMethod === 'mercadopago' ? 'MercadoPago' : 'Transferencia', false)
+        getAdminWhatsAppText(firstName, lastName, eventName, eventDateStr, email, phone, paymentMethod === 'mercadopago' ? 'MercadoPago' : 'Transferencia', false, instagram)
       ),
     ]);
 

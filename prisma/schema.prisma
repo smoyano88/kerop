@@ -33,6 +33,7 @@ model Registration {
   gender        String
   email         String?
   phone         String?
+  instagram     String?
   selectedDrink String
   eventId       String
   paid          Boolean  @default(false)

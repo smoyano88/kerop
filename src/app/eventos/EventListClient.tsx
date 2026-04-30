@@ -199,16 +199,20 @@ function RegistrationModal({ event, onClose }: { event: Event, onClose: () => vo
   const availableMen = Math.max(0, totalCapacityMen - registeredMen);
   const availableWomen = Math.max(0, totalCapacityWomen - registeredWomen);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleSubmit = async (formData: FormData) => {
     setLoading(true);
     setError('');
 
-    const formData = new FormData(e.currentTarget);
-    const email = formData.get('email') as string;
+    const instagram = formData.get('instagram') as string;
+    const phone = formData.get('phone') as string;
 
-    if (!email) {
-      setError('Por favor ingresá un Email para poder contactarte.');
+    if (!instagram) {
+      setError('Por favor ingresá tu Instagram para que podamos enviarte tus matches.');
+      setLoading(false);
+      return;
+    }
+    if (!phone) {
+      setError('Por favor ingresá tu teléfono de contacto.');
       setLoading(false);
       return;
     }
@@ -216,8 +220,9 @@ function RegistrationModal({ event, onClose }: { event: Event, onClose: () => vo
     const data = {
       firstName: formData.get('firstName'),
       lastName: formData.get('lastName'),
-      email: email || null,
-      phone: null,
+      email: formData.get('email') || null,
+      phone,
+      instagram: instagram.startsWith('@') ? instagram : `@${instagram}`,
       gender: formData.get('gender'),
       selectedDrink: formData.get('selectedDrink'),
       eventId: event.id,
@@ -320,7 +325,7 @@ function RegistrationModal({ event, onClose }: { event: Event, onClose: () => vo
             </button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit}>
+          <form action={handleSubmit}>
             <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
               <div style={{ flex: 1 }}>
                 <label className="input-label">Nombre</label>
@@ -333,8 +338,19 @@ function RegistrationModal({ event, onClose }: { event: Event, onClose: () => vo
             </div>
 
             <div style={{ marginBottom: '1.5rem' }}>
-              <label className="input-label">Email</label>
-              <input type="email" name="email" required className="input-field" placeholder="tu@email.com" />
+              <label className="input-label">Instagram <span className="text-pink">*</span></label>
+              <input type="text" name="instagram" required className="input-field" placeholder="@tu_usuario" />
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '0.4rem' }}>Te enviaremos el contacto de tus matches por acá.</p>
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label className="input-label">Teléfono <span className="text-pink">*</span></label>
+              <input type="tel" name="phone" required className="input-field" placeholder="+598 99 123 456" />
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label className="input-label">Email <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>(opcional)</span></label>
+              <input type="email" name="email" className="input-field" placeholder="tu@email.com" />
             </div>
 
             {event.type === 'Ellas y Ellas' ? (

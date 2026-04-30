@@ -67,11 +67,11 @@ export async function POST(request: Request) {
                 sendEmail(
                   'smoyano1988@gmail.com',
                   `Pago Confirmado - ${eventInfo.type}`,
-                  getAdminNotificationHtml(existing.firstName, existing.lastName, eventInfo.type, eventDateStr, existing.email, existing.phone, 'MercadoPago', true)
+                  getAdminNotificationHtml(existing.firstName, existing.lastName, eventInfo.type, eventDateStr, existing.email, existing.phone, 'MercadoPago', true, existing.instagram)
                 ),
                 sendWhatsApp(
                   '+59897183275',
-                  getAdminWhatsAppText(existing.firstName, existing.lastName, eventInfo.type, eventDateStr, existing.email, existing.phone, 'MercadoPago', true)
+                  getAdminWhatsAppText(existing.firstName, existing.lastName, eventInfo.type, eventDateStr, existing.email, existing.phone, 'MercadoPago', true, existing.instagram)
                 ),
               ]);
             }

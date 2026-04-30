@@ -103,20 +103,22 @@ export const getAdminWhatsAppText = (
   email: string | null,
   phone: string | null,
   paymentMethod: string,
-  isPaid: boolean = false
+  isPaid: boolean = false,
+  instagram: string | null = null
 ) => {
   let text = `📢 *Nuevo movimiento en Kerop*\n\n`;
-  
+
   if (isPaid) {
     text += `✅ *${firstName} ${lastName}* acaba de realizar un pago exitoso por MercadoPago.\n\n`;
   } else {
     text += `⏳ *${firstName} ${lastName}* se registró y está pendiente de pago.\n\n`;
   }
-  
+
   text += `*Evento:* ${eventName} (${eventDate})\n`;
-  text += `*Email:* ${email || 'No provisto'}\n`;
+  text += `*Instagram:* ${instagram || 'No provisto'}\n`;
   text += `*Celular:* ${phone || 'No provisto'}\n`;
+  text += `*Email:* ${email || 'No provisto'}\n`;
   text += `*Método:* ${paymentMethod}`;
-  
+
   return text;
 };

@@ -65,11 +65,11 @@ export async function PATCH(
         sendEmail(
           'smoyano1988@gmail.com',
           `Pago Confirmado Manual - ${updated.event.type}`,
-          getAdminNotificationHtml(updated.firstName, updated.lastName, updated.event.type, eventDateStr, updated.email, updated.phone, 'Transferencia', true)
+          getAdminNotificationHtml(updated.firstName, updated.lastName, updated.event.type, eventDateStr, updated.email, updated.phone, 'Transferencia', true, updated.instagram)
         ),
         sendWhatsApp(
           '+59897183275',
-          getAdminWhatsAppText(updated.firstName, updated.lastName, updated.event.type, eventDateStr, updated.email, updated.phone, 'Transferencia', true)
+          getAdminWhatsAppText(updated.firstName, updated.lastName, updated.event.type, eventDateStr, updated.email, updated.phone, 'Transferencia', true, updated.instagram)
         ),
       ]);
     } catch (notifError) {

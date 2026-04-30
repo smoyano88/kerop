@@ -84,24 +84,26 @@ export const getAdminNotificationHtml = (
   email: string | null,
   phone: string | null,
   paymentMethod: string,
-  isPaid: boolean = false
+  isPaid: boolean = false,
+  instagram: string | null = null
 ) => {
   return `
     <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #111; color: #fff; padding: 20px; border-radius: 10px; border: 1px solid #39ff14;">
       <h2 style="color: #39ff14; font-size: 22px;">📢 Nuevo movimiento en Kerop</h2>
-      
+
       <p style="color: #fff; font-size: 16px;">
-        ${isPaid 
-          ? `<strong>${firstName} ${lastName}</strong> acaba de realizar un pago exitoso por MercadoPago.` 
+        ${isPaid
+          ? `<strong>${firstName} ${lastName}</strong> acaba de realizar un pago exitoso por MercadoPago.`
           : `<strong>${firstName} ${lastName}</strong> acaba de registrarse en un evento.`}
       </p>
-      
+
       <div style="background-color: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 8px; margin: 20px 0;">
         <ul style="list-style-type: none; padding: 0; margin: 0; color: #ccc; font-size: 15px;">
           <li style="margin-bottom: 8px;"><strong>Evento:</strong> ${eventName} (${eventDate})</li>
           <li style="margin-bottom: 8px;"><strong>Nombre:</strong> ${firstName} ${lastName}</li>
-          <li style="margin-bottom: 8px;"><strong>Email:</strong> ${email || 'No proporcionado'}</li>
+          <li style="margin-bottom: 8px;"><strong>Instagram:</strong> ${instagram || 'No proporcionado'}</li>
           <li style="margin-bottom: 8px;"><strong>Celular:</strong> ${phone || 'No proporcionado'}</li>
+          <li style="margin-bottom: 8px;"><strong>Email:</strong> ${email || 'No proporcionado'}</li>
           <li style="margin-bottom: 8px;"><strong>Método de pago:</strong> ${paymentMethod}</li>
           <li style="margin-bottom: 0;"><strong>Estado:</strong> ${isPaid ? '<span style="color: #39ff14;">✅ Pagado</span>' : '<span style="color: #ff107a;">⏳ Pendiente</span>'}</li>
         </ul>

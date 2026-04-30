@@ -32,11 +32,32 @@ interface Registration {
   lastName: string;
   gender: string;
   email?: string;
+  phone?: string;
+  instagram?: string;
   selectedDrink: string;
+  eventId: string;
   paid: boolean;
   attended?: boolean;
   paymentMethod?: string;
   createdAt: string;
+}
+
+interface RegistrationWithEvent extends Registration {
+  event: {
+    id: string;
+    type: string;
+    date: string;
+    ageRange: string;
+  };
+}
+
+interface ParticipantGroup {
+  key: string;
+  instagram: string | null;
+  firstName: string;
+  lastName: string;
+  phone: string | null;
+  registrations: RegistrationWithEvent[];
 }
 
 interface Event {
@@ -59,8 +80,15 @@ export default function AdminClient({ events }: { events: Event[] }) {
   const [eventList, setEventList] = useState<Event[]>(events);
   
   // Navigation State
-  const [activeTab, setActiveTab] = useState<'events' | 'create' | 'matches' | 'password'>('events');
+  const [activeTab, setActiveTab] = useState<'events' | 'create' | 'matches' | 'participants' | 'password'>('events');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Participants State
+  const [allRegistrations, setAllRegistrations] = useState<RegistrationWithEvent[]>([]);
+  const [matchDataByEvent, setMatchDataByEvent] = useState<Record<string, { selections: Record<string, string[]> }>>({});
+  const [participantsLoading, setParticipantsLoading] = useState(false);
+  const [participantsSearch, setParticipantsSearch] = useState('');
+  const [expandedParticipant, setExpandedParticipant] = useState<string | null>(null);
 
   // Match State
   const [matchEventId, setMatchEventId] = useState<string | null>(null);
@@ -76,6 +104,38 @@ export default function AdminClient({ events }: { events: Event[] }) {
     } catch (e) {
       console.error('Error recargando eventos:', e);
     }
+  };
+
+  const loadParticipants = async () => {
+    setParticipantsLoading(true);
+    try {
+      const regs: RegistrationWithEvent[] = await fetch('/api/registrations').then(r => r.json());
+      setAllRegistrations(regs);
+
+      const eventIds = [...new Set(regs.map(r => r.eventId))];
+      const matchResults = await Promise.all(
+        eventIds.map(eventId => fetch(`/api/matches?eventId=${eventId}`).then(r => r.json()))
+      );
+      const matchMap: Record<string, { selections: Record<string, string[]> }> = {};
+      eventIds.forEach((id, i) => { matchMap[id] = matchResults[i]; });
+      setMatchDataByEvent(matchMap);
+    } catch (e) {
+      console.error('Error cargando participantes:', e);
+    } finally {
+      setParticipantsLoading(false);
+    }
+  };
+
+  const getMatchesForReg = (reg: RegistrationWithEvent): RegistrationWithEvent[] => {
+    const matchData = matchDataByEvent[reg.eventId];
+    if (!matchData?.selections) return [];
+    const eventRegs = allRegistrations.filter(r => r.eventId === reg.eventId);
+    const mySelections: string[] = matchData.selections[reg.id] || [];
+    return eventRegs.filter(other =>
+      other.id !== reg.id &&
+      mySelections.includes(other.id) &&
+      (matchData.selections[other.id] || []).includes(reg.id)
+    );
   };
 
   /* ── Auth State: login una sola vez ── */
@@ -408,6 +468,10 @@ export default function AdminClient({ events }: { events: Event[] }) {
             <span className="admin-nav-icon">💘</span>
             <span className="admin-nav-label">Matches</span>
           </div>
+          <div className={`admin-nav-item ${activeTab === 'participants' ? 'active' : ''}`} onClick={() => { setActiveTab('participants'); loadParticipants(); }}>
+            <span className="admin-nav-icon">👥</span>
+            <span className="admin-nav-label">Participantes</span>
+          </div>
           <div className={`admin-nav-item ${activeTab === 'password' ? 'active' : ''}`} onClick={() => setActiveTab('password')}>
             <span className="admin-nav-icon">🔑</span>
             <span className="admin-nav-label">Cambiar Contraseña</span>
@@ -439,6 +503,10 @@ export default function AdminClient({ events }: { events: Event[] }) {
           <div className={`admin-mobile-nav-item ${activeTab === 'matches' ? 'active' : ''}`} onClick={() => { setActiveTab('matches'); setMatchResults(null); }}>
             <span className="admin-nav-icon">💘</span>
             <span>Matches</span>
+          </div>
+          <div className={`admin-mobile-nav-item ${activeTab === 'participants' ? 'active' : ''}`} onClick={() => { setActiveTab('participants'); loadParticipants(); }}>
+            <span className="admin-nav-icon">👥</span>
+            <span>Participantes</span>
           </div>
           <div className={`admin-mobile-nav-item ${activeTab === 'password' ? 'active' : ''}`} onClick={() => setActiveTab('password')}>
             <span className="admin-nav-icon">🔑</span>
@@ -1328,6 +1396,161 @@ export default function AdminClient({ events }: { events: Event[] }) {
             </div>
           </div>
         )}
+
+        {/* ─── TAB: PARTICIPANTES ─── */}
+        {activeTab === 'participants' && (() => {
+          // Agrupar por instagram (o nombre si no tiene)
+          const groups: Record<string, ParticipantGroup> = {};
+          for (const reg of allRegistrations) {
+            const key = reg.instagram?.toLowerCase() || `${reg.firstName}_${reg.lastName}`.toLowerCase();
+            if (!groups[key]) {
+              groups[key] = { key, instagram: reg.instagram || null, firstName: reg.firstName, lastName: reg.lastName, phone: reg.phone || null, registrations: [] };
+            }
+            groups[key].registrations.push(reg);
+          }
+          const allGroups = Object.values(groups).sort((a, b) =>
+            `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)
+          );
+          const search = participantsSearch.toLowerCase();
+          const filtered = allGroups.filter(p =>
+            !search ||
+            `${p.firstName} ${p.lastName}`.toLowerCase().includes(search) ||
+            (p.instagram || '').toLowerCase().includes(search) ||
+            (p.phone || '').includes(search)
+          );
+          const totalMatches = allGroups.reduce((acc, p) =>
+            acc + p.registrations.reduce((a, r) => a + getMatchesForReg(r).length, 0), 0
+          ) / 2;
+
+          return (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+                <h3 style={{ fontSize: '1.5rem', margin: 0 }}>Base de Participantes</h3>
+                <button
+                  onClick={loadParticipants}
+                  disabled={participantsLoading}
+                  style={{ marginLeft: 'auto', background: 'none', border: '1px solid rgba(255,255,255,0.15)', color: 'var(--text-muted)', padding: '0.4rem 1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem' }}
+                >
+                  {participantsLoading ? '⏳ Cargando...' : '🔄 Actualizar'}
+                </button>
+              </div>
+
+              {/* Stats */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                {[
+                  { label: 'Participantes únicos', value: allGroups.length, color: 'var(--neon-cyan)' },
+                  { label: 'Inscripciones totales', value: allRegistrations.length, color: 'var(--neon-green)' },
+                  { label: 'Matches generados', value: Math.floor(totalMatches), color: 'var(--neon-pink)' },
+                ].map(stat => (
+                  <div key={stat.label} style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)', textAlign: 'center' }}>
+                    <div style={{ fontSize: '1.8rem', fontWeight: 700, color: stat.color }}>{stat.value}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginTop: '0.25rem' }}>{stat.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Buscador */}
+              <div style={{ marginBottom: '1.5rem' }}>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="Buscar por nombre, Instagram o teléfono..."
+                  value={participantsSearch}
+                  onChange={e => setParticipantsSearch(e.target.value)}
+                />
+              </div>
+
+              {participantsLoading ? (
+                <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Cargando participantes...</div>
+              ) : filtered.length === 0 ? (
+                <div className="glass-card" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+                  <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>👥</div>
+                  <p>{participantsSearch ? 'Sin resultados para esa búsqueda.' : 'Aún no hay participantes registrados.'}</p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {filtered.map(participant => {
+                    const isExpanded = expandedParticipant === participant.key;
+                    const totalMatchCount = participant.registrations.reduce((acc, r) => acc + getMatchesForReg(r).length, 0);
+                    return (
+                      <div key={participant.key} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px', overflow: 'hidden' }}>
+                        {/* Fila del participante */}
+                        <div
+                          onClick={() => setExpandedParticipant(isExpanded ? null : participant.key)}
+                          style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', padding: '1rem 1.25rem', cursor: 'pointer', gap: '1rem' }}
+                        >
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', alignItems: 'center' }}>
+                            <div>
+                              <div style={{ fontWeight: 600, fontSize: '1rem' }}>{participant.firstName} {participant.lastName}</div>
+                              <div style={{ color: 'var(--neon-cyan)', fontSize: '0.85rem', marginTop: '0.15rem' }}>{participant.instagram || <span style={{ color: 'var(--text-muted)' }}>Sin Instagram</span>}</div>
+                            </div>
+                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>📱 {participant.phone || '—'}</div>
+                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                              📅 {participant.registrations.length} evento{participant.registrations.length !== 1 ? 's' : ''}
+                            </div>
+                            {totalMatchCount > 0 && (
+                              <span style={{ background: 'rgba(255,16,122,0.15)', color: 'var(--neon-pink)', border: '1px solid rgba(255,16,122,0.3)', borderRadius: '50px', padding: '0.1rem 0.6rem', fontSize: '0.8rem', fontWeight: 600 }}>
+                                💘 {totalMatchCount} match{totalMatchCount !== 1 ? 'es' : ''}
+                              </span>
+                            )}
+                          </div>
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{isExpanded ? '▲' : '▼'}</span>
+                        </div>
+
+                        {/* Detalle expandido */}
+                        {isExpanded && (
+                          <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: '1rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            {participant.registrations
+                              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                              .map(reg => {
+                                const matches = getMatchesForReg(reg);
+                                return (
+                                  <div key={reg.id} style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '1rem', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                                      <div>
+                                        <div style={{ fontWeight: 600, color: 'white' }}>{reg.event.type}</div>
+                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                          {format(new Date(reg.event.date), "dd/MM/yyyy 'a las' HH:mm")} · Registrado el {format(new Date(reg.createdAt), "dd/MM/yyyy")}
+                                        </div>
+                                      </div>
+                                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                        <span style={{ background: reg.paid ? 'rgba(57,255,20,0.1)' : 'rgba(255,16,122,0.1)', color: reg.paid ? 'var(--neon-green)' : 'var(--neon-pink)', border: `1px solid ${reg.paid ? 'rgba(57,255,20,0.2)' : 'rgba(255,16,122,0.2)'}`, borderRadius: '50px', padding: '0.15rem 0.6rem', fontSize: '0.75rem' }}>
+                                          {reg.paid ? '✅ Pagado' : '⏳ Pendiente'}
+                                        </span>
+                                        <span style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', borderRadius: '50px', padding: '0.15rem 0.6rem', fontSize: '0.75rem' }}>
+                                          {reg.gender === 'Hombre' ? '👨 Hombre' : '👩 Mujer'}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    {matches.length > 0 ? (
+                                      <div>
+                                        <div style={{ fontSize: '0.78rem', color: 'var(--neon-pink)', textTransform: 'uppercase', marginBottom: '0.4rem', fontWeight: 600 }}>💘 Matches en este evento</div>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                          {matches.map(m => (
+                                            <div key={m.id} style={{ background: 'rgba(255,16,122,0.08)', border: '1px solid rgba(255,16,122,0.2)', borderRadius: '8px', padding: '0.4rem 0.75rem', fontSize: '0.85rem' }}>
+                                              <div style={{ fontWeight: 600 }}>{m.firstName} {m.lastName}</div>
+                                              {m.instagram && <div style={{ color: 'var(--neon-cyan)', fontSize: '0.75rem' }}>{m.instagram}</div>}
+                                              {m.phone && <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>📱 {m.phone}</div>}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Sin matches en este evento.</div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
