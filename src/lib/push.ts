@@ -53,9 +53,11 @@ export const sendPushNotification = async (title: string, body: string, url: str
       try {
         await webpush.sendNotification(pushSub, payload);
       } catch (err: any) {
-        // Si el token expiró o ya no es válido, lo borramos
-        if (err.statusCode === 410 || err.statusCode === 404) {
-          await prisma.pushSubscription.delete({ where: { id: sub.id } });
+        // 410/404: token expirado. 403: VAPID mismatch (suscripción de otro par de claves)
+        // En todos estos casos la suscripción es inservible — la borramos.
+        if (err.statusCode === 410 || err.statusCode === 404 || err.statusCode === 403) {
+          await prisma.pushSubscription.delete({ where: { id: sub.id } }).catch(() => {});
+          console.warn(`🧹 Push subscription eliminada (status ${err.statusCode}) — el dispositivo deberá resuscribirse.`);
         } else {
           console.error('❌ Error enviando push a un dispositivo:', err);
         }

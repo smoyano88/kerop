@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyAdminPassword } from "@/lib/auth";
+import { isReservationActive } from "@/lib/reservations";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const scope = searchParams.get("scope"); // "admin" => devolver todas
+
     const events = await prisma.event.findMany({
       orderBy: { date: "desc" },
       include: {
@@ -11,7 +15,17 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json(events);
+    if (scope === "admin") {
+      return NextResponse.json(events);
+    }
+
+    // Para uso público: filtrar registraciones expiradas para que no bloqueen cupos
+    const filtered = events.map((ev) => ({
+      ...ev,
+      registrations: ev.registrations.filter((r) => isReservationActive(r)),
+    }));
+
+    return NextResponse.json(filtered);
   } catch (error) {
     return NextResponse.json(
       { error: "Error fetching events" },

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Calendar, Clock, Users, Wine } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -72,8 +72,8 @@ export default function EventListClient({ events }: { events: Event[] }) {
           const processedEvents = events.map(event => {
             const isHH = event.type === 'Ellos y Ellos';
             const isMM = event.type === 'Ellas y Ellas';
-            const totalCapacityMen = isHH ? event.spotsPerGender * 2 : event.spotsPerGender;
-            const totalCapacityWomen = isMM ? event.spotsPerGender * 2 : event.spotsPerGender;
+            const totalCapacityMen = event.spotsPerGender;
+            const totalCapacityWomen = event.spotsPerGender;
             const registeredMen = event.registrations?.filter(r => r.gender === 'Hombre').length || 0;
             const registeredWomen = event.registrations?.filter(r => r.gender === 'Mujer').length || 0;
             const availableMen = Math.max(0, totalCapacityMen - registeredMen);
@@ -90,8 +90,35 @@ export default function EventListClient({ events }: { events: Event[] }) {
           return sortedEvents.map((event) => {
             const { isSoldOut, isHH, isMM, availableMen, availableWomen } = event;
 
+          const isHomo = isHH || isMM;
           return (
-          <div key={event.id} className="glass-card" style={{ display: 'flex', flexDirection: 'column' }}>
+          <div key={event.id} className="glass-card" style={{ display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
+            {isHomo && (
+              <div
+                aria-label="Evento LGBTQ+"
+                title="Evento del mismo sexo"
+                style={{
+                  position: 'absolute',
+                  top: '18px',
+                  right: '-55px',
+                  transform: 'rotate(45deg)',
+                  width: '200px',
+                  textAlign: 'center',
+                  background: 'linear-gradient(90deg, #e40303, #ff8c00, #ffed00, #008026, #004dff, #750787)',
+                  color: 'white',
+                  fontSize: '0.7rem',
+                  fontWeight: 700,
+                  letterSpacing: '1px',
+                  padding: '0.3rem 0',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+                  textShadow: '0 1px 2px rgba(0,0,0,0.6)',
+                  zIndex: 2,
+                  pointerEvents: 'none',
+                }}
+              >
+                🏳️‍🌈 PRIDE
+              </div>
+            )}
             <div style={{ flex: 1 }}>
               <div style={{ display: 'inline-block', background: isSoldOut ? 'rgba(255, 16, 122, 0.1)' : 'rgba(57, 255, 20, 0.1)', padding: '0.25rem 0.75rem', borderRadius: '50px', marginBottom: '1.5rem', border: isSoldOut ? '1px solid rgba(255, 16, 122, 0.3)' : '1px solid rgba(57, 255, 20, 0.3)' }}>
                 <span className={isSoldOut ? "text-pink" : "text-green"} style={{ fontSize: '0.85rem', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}>
@@ -185,13 +212,14 @@ function RegistrationModal({ event, onClose }: { event: Event, onClose: () => vo
   const [success, setSuccess] = useState<'mercadopago' | 'transfer' | false>(false);
   const [error, setError] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'mercadopago' | 'transfer'>(event.mpEnabled ? 'mercadopago' : 'transfer');
+  const submittingRef = useRef(false);
 
   const drinks = event.drinksAvailable.split(',').map(d => d.trim()).filter(Boolean);
 
   const isHH = event.type === 'Ellos y Ellos';
   const isMM = event.type === 'Ellas y Ellas';
-  const totalCapacityMen = isHH ? event.spotsPerGender * 2 : event.spotsPerGender;
-  const totalCapacityWomen = isMM ? event.spotsPerGender * 2 : event.spotsPerGender;
+  const totalCapacityMen = event.spotsPerGender;
+  const totalCapacityWomen = event.spotsPerGender;
 
   const registeredMen = event.registrations?.filter(r => r.gender === 'Hombre').length || 0;
   const registeredWomen = event.registrations?.filter(r => r.gender === 'Mujer').length || 0;
@@ -199,16 +227,22 @@ function RegistrationModal({ event, onClose }: { event: Event, onClose: () => vo
   const availableMen = Math.max(0, totalCapacityMen - registeredMen);
   const availableWomen = Math.max(0, totalCapacityWomen - registeredWomen);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleSubmit = async (formData: FormData) => {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setLoading(true);
     setError('');
 
-    const formData = new FormData(e.currentTarget);
-    const email = formData.get('email') as string;
+    const instagram = formData.get('instagram') as string;
+    const phone = formData.get('phone') as string;
 
-    if (!email) {
-      setError('Por favor ingresá un Email para poder contactarte.');
+    if (!instagram) {
+      setError('Por favor ingresá tu Instagram para que podamos enviarte tus matches.');
+      setLoading(false);
+      return;
+    }
+    if (!phone) {
+      setError('Por favor ingresá tu teléfono de contacto.');
       setLoading(false);
       return;
     }
@@ -216,8 +250,9 @@ function RegistrationModal({ event, onClose }: { event: Event, onClose: () => vo
     const data = {
       firstName: formData.get('firstName'),
       lastName: formData.get('lastName'),
-      email: email || null,
-      phone: null,
+      email: formData.get('email') || null,
+      phone,
+      instagram: instagram.startsWith('@') ? instagram : `@${instagram}`,
       gender: formData.get('gender'),
       selectedDrink: formData.get('selectedDrink'),
       eventId: event.id,
@@ -245,6 +280,7 @@ function RegistrationModal({ event, onClose }: { event: Event, onClose: () => vo
     } catch (err: any) {
       setError(err.message);
       setLoading(false);
+      submittingRef.current = false;
     }
   };
 
@@ -252,11 +288,13 @@ function RegistrationModal({ event, onClose }: { event: Event, onClose: () => vo
     <div style={{
       position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
       backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      zIndex: 1000, padding: '1rem'
+      display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+      zIndex: 1000, padding: '1rem', overflowY: 'auto'
     }}>
-      <div className="glass-card" style={{ 
-        width: '100%', maxWidth: '500px', position: 'relative',
+      <div className="glass-card" style={{
+        width: '100%', maxWidth: '700px', position: 'relative',
+        padding: '1.5rem',
+        margin: 'auto',
         border: '1px solid rgba(255, 16, 122, 0.4)',
         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 30px rgba(255, 16, 122, 0.15)'
       }}>
@@ -265,16 +303,16 @@ function RegistrationModal({ event, onClose }: { event: Event, onClose: () => vo
           if (success) {
             window.location.reload();
           }
-        }} style={{ 
-          position: 'absolute', top: '1.5rem', right: '1.5rem', 
+        }} style={{
+          position: 'absolute', top: '1.25rem', right: '1.25rem',
           background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '2rem', cursor: 'pointer',
           lineHeight: 0.5
         }}>
           &times;
         </button>
-        
-        <h3 className="text-pink" style={{ fontSize: '2.5rem', marginBottom: '0.1rem' }}>Registro</h3>
-        <p style={{ color: 'var(--text-muted)', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+
+        <h3 className="text-pink" style={{ fontSize: '2rem', marginBottom: '0.1rem' }}>Registro</h3>
+        <p style={{ color: 'var(--text-muted)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           {event.type} <span style={{color: 'var(--neon-green)'}}>•</span> <span suppressHydrationWarning>{format(new Date(event.date), "dd/MM/yyyy")}</span>
         </p>
 
@@ -295,23 +333,23 @@ function RegistrationModal({ event, onClose }: { event: Event, onClose: () => vo
               <h4 style={{ fontSize: '1.6rem', marginBottom: '0.5rem', color: 'white' }}>¡Registro Iniciado!</h4>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Para confirmar tu lugar, realizá la transferencia y envianos el comprobante.</p>
             </div>
-            
+
             <div style={{ background: 'rgba(255,255,255,0.05)', padding: '1.5rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.9rem', lineHeight: 1.6 }}>
               <p style={{ color: 'var(--neon-green)', fontWeight: 600, marginBottom: '0.5rem', textTransform: 'uppercase', fontSize: '0.8rem', letterSpacing: '1px' }}>Datos para Transferencia (${event.price || 850} UYU)</p>
-              
+
               <div style={{ marginBottom: '1rem' }}>
                 <strong style={{ color: 'white' }}>Mariana Ganimian</strong><br/>
                 <span style={{ color: 'var(--text-muted)' }}>Dentro de Santander:</span> Cuenta 1201993896 / Suc. 19-Carrasco<br/>
                 <span style={{ color: 'var(--text-muted)' }}>Otros bancos a Santander:</span> Cuenta 0019001201993896 (UYU)
               </div>
-              
+
               <div>
                 <strong style={{ color: 'white' }}>Prex Kerop</strong><br/>
                 <span style={{ color: 'var(--text-muted)' }}>Mariana Ganimian (CI 45342774)</span><br/>
                 <span style={{ color: 'var(--text-muted)' }}>Cuenta:</span> 290962
               </div>
             </div>
-            
+
             <button onClick={() => {
               onClose();
               if (success) window.location.reload();
@@ -320,87 +358,103 @@ function RegistrationModal({ event, onClose }: { event: Event, onClose: () => vo
             </button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit}>
-            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
-              <div style={{ flex: 1 }}>
+          <form action={handleSubmit}>
+            {/* Fila 1: Nombre + Apellido + Instagram */}
+            <div className="form-row-3">
+              <div>
                 <label className="input-label">Nombre</label>
                 <input type="text" name="firstName" required className="input-field" placeholder="Juan" />
               </div>
-              <div style={{ flex: 1 }}>
+              <div>
                 <label className="input-label">Apellido</label>
                 <input type="text" name="lastName" required className="input-field" placeholder="Pérez" />
               </div>
+              <div>
+                <label className="input-label">Instagram <span className="text-pink">*</span></label>
+                <input type="text" name="instagram" required className="input-field" placeholder="@tu_usuario" />
+              </div>
             </div>
 
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label className="input-label">Email</label>
-              <input type="email" name="email" required className="input-field" placeholder="tu@email.com" />
+            {/* Fila 2: Teléfono + Email */}
+            <div className="form-row-2">
+              <div>
+                <label className="input-label">Teléfono <span className="text-pink">*</span></label>
+                <input type="tel" name="phone" required className="input-field" placeholder="+598 99 123 456" />
+              </div>
+              <div>
+                <label className="input-label">Email <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>(opcional)</span></label>
+                <input type="email" name="email" className="input-field" placeholder="tu@email.com" />
+              </div>
             </div>
 
+            {/* Fila 3: Género + Trago (o solo Trago para mismo sexo) */}
             {event.type === 'Ellas y Ellas' ? (
               <input type="hidden" name="gender" value="Mujer" />
             ) : event.type === 'Ellos y Ellos' ? (
               <input type="hidden" name="gender" value="Hombre" />
-            ) : (
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label className="input-label">Género</label>
-                <select name="gender" required defaultValue="" className="input-field" style={{ appearance: 'none', backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'white\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpolyline points=\'6 9 12 15 18 9\'%3E%3C/polyline%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', paddingRight: '3rem' }}>
-                  <option value="" disabled>Seleccioná tu género...</option>
-                  <option value="Mujer" style={{ background: '#000', color: availableWomen === 0 ? 'gray' : '#fff' }} disabled={availableWomen === 0}>Mujer {availableWomen === 0 ? '(AGOTADO)' : ''}</option>
-                  <option value="Hombre" style={{ background: '#000', color: availableMen === 0 ? 'gray' : '#fff' }} disabled={availableMen === 0}>Hombre {availableMen === 0 ? '(AGOTADO)' : ''}</option>
+            ) : null}
+
+            <div className={event.type === 'Ellas y Ellas' || event.type === 'Ellos y Ellos' ? '' : 'form-row-2'} style={{ marginBottom: '0.9rem' }}>
+              {event.type !== 'Ellas y Ellas' && event.type !== 'Ellos y Ellos' && (
+                <div>
+                  <label className="input-label">Género</label>
+                  <select name="gender" required defaultValue="" className="input-field" style={{ appearance: 'none', backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'white\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpolyline points=\'6 9 12 15 18 9\'%3E%3C/polyline%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', paddingRight: '3rem' }}>
+                    <option value="" disabled>Seleccioná tu género...</option>
+                    <option value="Mujer" style={{ background: '#000', color: availableWomen === 0 ? 'gray' : '#fff' }} disabled={availableWomen === 0}>Mujer {availableWomen === 0 ? '(AGOTADO)' : ''}</option>
+                    <option value="Hombre" style={{ background: '#000', color: availableMen === 0 ? 'gray' : '#fff' }} disabled={availableMen === 0}>Hombre {availableMen === 0 ? '(AGOTADO)' : ''}</option>
+                  </select>
+                </div>
+              )}
+              <div>
+                <label className="input-label">Trago de Autor</label>
+                <select name="selectedDrink" required defaultValue="" className="input-field" style={{ appearance: 'none', backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'white\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpolyline points=\'6 9 12 15 18 9\'%3E%3C/polyline%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', paddingRight: '3rem' }}>
+                  <option value="" disabled>Seleccioná una opción...</option>
+                  {drinks.map(drink => (
+                    <option key={drink} value={drink} style={{ background: '#000', color: '#fff' }}>{drink}</option>
+                  ))}
                 </select>
               </div>
-            )}
-            
-            <div style={{ marginBottom: '2rem' }}>
-              <label className="input-label">Elegí tu Trago de Autor</label>
-              <select name="selectedDrink" required defaultValue="" className="input-field" style={{ appearance: 'none', backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'white\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpolyline points=\'6 9 12 15 18 9\'%3E%3C/polyline%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', paddingRight: '3rem' }}>
-                <option value="" disabled>Seleccioná una opción...</option>
-                {drinks.map(drink => (
-                  <option key={drink} value={drink} style={{ background: '#000', color: '#fff' }}>{drink}</option>
-                ))}
-              </select>
             </div>
-            
-            <div style={{ marginBottom: '2rem' }}>
-              <label className="input-label" style={{ marginBottom: '0.75rem', display: 'block' }}>Forma de Pago</label>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: event.mpEnabled ? '1fr 1fr' : '1fr', gap: '1rem' }}>
+
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label className="input-label" style={{ marginBottom: '0.6rem', display: 'block' }}>Forma de Pago</label>
+
+              <div style={{ display: 'grid', gridTemplateColumns: event.mpEnabled ? '1fr 1fr' : '1fr', gap: '0.75rem' }}>
                 {event.mpEnabled && (
-                  <div 
+                  <div
                     onClick={() => setPaymentMethod('mercadopago')}
-                    style={{ 
-                      border: `1px solid ${paymentMethod === 'mercadopago' ? 'var(--neon-cyan)' : 'rgba(255,255,255,0.1)'}`, 
+                    style={{
+                      border: `1px solid ${paymentMethod === 'mercadopago' ? 'var(--neon-cyan)' : 'rgba(255,255,255,0.1)'}`,
                       background: paymentMethod === 'mercadopago' ? 'rgba(0, 255, 255, 0.1)' : 'rgba(0,0,0,0.3)',
-                      padding: '1rem', borderRadius: '8px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.2s'
+                      padding: '0.75rem', borderRadius: '8px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.2s'
                     }}
                   >
-                    <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>💳</div>
-                    <div style={{ fontWeight: 600, color: 'white', fontSize: '0.9rem' }}>Mercado Pago</div>
-                    <div style={{ color: 'var(--neon-cyan)', fontSize: '0.85rem', marginTop: '0.2rem' }}>${event.price || 850} UYU</div>
-                    <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem', marginTop: '0.2rem' }}>Tarjetas o Dinero MP</div>
+                    <div style={{ fontSize: '1.3rem', marginBottom: '0.3rem' }}>💳</div>
+                    <div style={{ fontWeight: 600, color: 'white', fontSize: '0.85rem' }}>Mercado Pago</div>
+                    <div style={{ color: 'var(--neon-cyan)', fontSize: '0.8rem', marginTop: '0.15rem' }}>${event.price || 850} UYU</div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.65rem', marginTop: '0.1rem' }}>Tarjetas o Dinero MP</div>
                   </div>
                 )}
 
 
-                <div 
+                <div
                   onClick={() => setPaymentMethod('transfer')}
-                  style={{ 
-                    border: `1px solid ${paymentMethod === 'transfer' ? 'var(--neon-green)' : 'rgba(255,255,255,0.1)'}`, 
+                  style={{
+                    border: `1px solid ${paymentMethod === 'transfer' ? 'var(--neon-green)' : 'rgba(255,255,255,0.1)'}`,
                     background: paymentMethod === 'transfer' ? 'rgba(57,255,20,0.1)' : 'rgba(0,0,0,0.3)',
-                    padding: '1rem', borderRadius: '8px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.2s'
+                    padding: '0.75rem', borderRadius: '8px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.2s'
                   }}
                 >
-                  <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>🏦</div>
-                  <div style={{ fontWeight: 600, color: 'white', fontSize: '0.9rem' }}>Transferencia</div>
-                  <div style={{ color: 'var(--neon-green)', fontSize: '0.85rem', marginTop: '0.2rem' }}>${event.price || 850} UYU</div>
-                  <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem', marginTop: '0.2rem' }}>Transferencia directa</div>
+                  <div style={{ fontSize: '1.3rem', marginBottom: '0.3rem' }}>🏦</div>
+                  <div style={{ fontWeight: 600, color: 'white', fontSize: '0.85rem' }}>Transferencia</div>
+                  <div style={{ color: 'var(--neon-green)', fontSize: '0.8rem', marginTop: '0.15rem' }}>${event.price || 850} UYU</div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.65rem', marginTop: '0.1rem' }}>Transferencia directa</div>
                 </div>
               </div>
             </div>
-            
-            {error && <p className="text-pink" style={{ marginBottom: '1.5rem', fontSize: '0.9rem', textAlign: 'center' }}>{error}</p>}
-            
+
+            {error && <p className="text-pink" style={{ marginBottom: '1rem', fontSize: '0.9rem', textAlign: 'center' }}>{error}</p>}
+
             <button type="submit" className="btn btn-primary" style={{ width: '100%', fontSize: '1.1rem' }} disabled={loading}>
               {loading ? 'Procesando...' : paymentMethod === 'mercadopago' ? `Ir a MercadoPago ($${event.price || 850})` : 'Ver datos para transferir'}
             </button>

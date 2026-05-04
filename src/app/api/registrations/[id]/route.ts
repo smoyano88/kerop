@@ -52,6 +52,7 @@ export async function PATCH(
 
     // Notificaciones de Pago Confirmado Manualmente
     try {
+      if (!updated.event) throw new Error('Evento no encontrado');
       const eventDateStr = new Date(updated.event.date).toLocaleDateString('es-UY');
       const { sendEmail, getAdminNotificationHtml } = await import('@/lib/email');
       const { sendWhatsApp, getAdminWhatsAppText } = await import('@/lib/whatsapp');
@@ -65,11 +66,11 @@ export async function PATCH(
         sendEmail(
           'smoyano1988@gmail.com',
           `Pago Confirmado Manual - ${updated.event.type}`,
-          getAdminNotificationHtml(updated.firstName, updated.lastName, updated.event.type, eventDateStr, updated.email, updated.phone, 'Transferencia', true)
+          getAdminNotificationHtml(updated.firstName, updated.lastName, updated.event.type, eventDateStr, updated.email, updated.phone, 'Transferencia', true, updated.instagram)
         ),
         sendWhatsApp(
           '+59897183275',
-          getAdminWhatsAppText(updated.firstName, updated.lastName, updated.event.type, eventDateStr, updated.email, updated.phone, 'Transferencia', true)
+          getAdminWhatsAppText(updated.firstName, updated.lastName, updated.event.type, eventDateStr, updated.email, updated.phone, 'Transferencia', true, updated.instagram)
         ),
       ]);
     } catch (notifError) {
