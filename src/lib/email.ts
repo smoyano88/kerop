@@ -76,6 +76,25 @@ export const getRegistrationEmailHtml = (
   `;
 };
 
+export const getPaymentConfirmedEmailHtml = (
+  firstName: string,
+  eventName: string,
+  eventDate: string,
+) => `
+  <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #000; color: #fff; padding: 20px; border-radius: 10px; border: 1px solid #39ff14;">
+    <div style="text-align: center; margin-bottom: 20px;">
+      <h1 style="color: #ff107a; margin: 0; font-size: 28px; text-transform: uppercase; letter-spacing: 2px;">Kerop</h1>
+      <p style="color: #fff; margin-top: 5px; font-size: 14px;">Café & Tattoo Studio</p>
+    </div>
+    <h2 style="color: #39ff14; font-size: 22px;">¡Tu lugar está confirmado! ✅</h2>
+    <p style="color: #ccc; font-size: 16px; line-height: 1.5;">¡Hola <strong>${firstName}</strong>! Tu pago fue aprobado y tu inscripción al evento <strong>${eventName}</strong> del <strong>${eventDate}</strong> quedó confirmada.</p>
+    <div style="background-color: rgba(57, 255, 20, 0.08); padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #39ff14;">
+      <p style="color: #39ff14; font-size: 16px; margin: 0;">✅ Pago recibido — cupo asegurado</p>
+    </div>
+    <p style="color: #ccc; font-size: 14px; text-align: center; margin-top: 30px;">¡Nos vemos pronto en Kerop!<br>Pérez Castellano 1495, Ciudad Vieja.</p>
+  </div>
+`;
+
 export const getAdminNotificationHtml = (
   firstName: string,
   lastName: string,

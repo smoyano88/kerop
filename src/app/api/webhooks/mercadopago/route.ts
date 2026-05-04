@@ -69,51 +69,37 @@ export async function POST(request: Request) {
       const registrationId = paymentInfo.external_reference;
 
       if (registrationId) {
-        // Verificar que la registración existe antes de actualizar
-        const existing = await prisma.registration.findUnique({
-          where: { id: registrationId },
+        // Actualización atómica — solo actualiza si paid=false, evita race con /verify
+        const { count } = await prisma.registration.updateMany({
+          where: { id: registrationId, paid: false },
+          data: { paid: true, paymentId: paymentInfo.id!.toString() },
         });
 
-        if (existing && !existing.paid) {
-          await prisma.registration.update({
-            where: { id: registrationId },
-            data: {
-              paid: true,
-              paymentId: paymentInfo.id!.toString(),
-            },
-          });
-          console.log(`✅ Webhook: Cupo confirmado para ${existing.firstName} ${existing.lastName} (${registrationId})`);
+        if (count > 0) {
+          const updated = await prisma.registration.findUnique({ where: { id: registrationId } });
+          console.log(`✅ Webhook: Cupo confirmado para ${updated?.firstName} ${updated?.lastName} (${registrationId})`);
 
-          // Notificar confirmación de pago
           try {
-            const eventInfo = existing.eventId ? await prisma.event.findUnique({ where: { id: existing.eventId } }) : null;
-            if (eventInfo) {
+            const eventInfo = updated?.eventId ? await prisma.event.findUnique({ where: { id: updated.eventId } }) : null;
+            if (eventInfo && updated) {
               const eventDateStr = new Date(eventInfo.date).toLocaleDateString('es-UY');
-              const { sendEmail, getAdminNotificationHtml } = await import('@/lib/email');
-              const { sendWhatsApp, getAdminWhatsAppText } = await import('@/lib/whatsapp');
+              const { sendEmail, getAdminNotificationHtml, getPaymentConfirmedEmailHtml } = await import('@/lib/email');
+              const { sendWhatsApp, getAdminWhatsAppText, getPaymentConfirmedWhatsAppText } = await import('@/lib/whatsapp');
               const { sendPushNotification } = await import('@/lib/push');
 
               await Promise.all([
-                sendPushNotification(
-                  'Pago Confirmado (MP) 💰',
-                  `${existing.firstName} ${existing.lastName} pagó su entrada para ${eventInfo.type}.`
-                ),
-                sendEmail(
-                  'smoyano1988@gmail.com',
-                  `Pago Confirmado - ${eventInfo.type}`,
-                  getAdminNotificationHtml(existing.firstName, existing.lastName, eventInfo.type, eventDateStr, existing.email, existing.phone, 'MercadoPago', true, existing.instagram)
-                ),
-                sendWhatsApp(
-                  '+59897183275',
-                  getAdminWhatsAppText(existing.firstName, existing.lastName, eventInfo.type, eventDateStr, existing.email, existing.phone, 'MercadoPago', true, existing.instagram)
-                ),
+                sendPushNotification('Pago Confirmado (MP) 💰', `${updated.firstName} ${updated.lastName} pagó su entrada para ${eventInfo.type}.`),
+                sendEmail('smoyano1988@gmail.com', `Pago Confirmado - ${eventInfo.type}`, getAdminNotificationHtml(updated.firstName, updated.lastName, eventInfo.type, eventDateStr, updated.email, updated.phone, 'MercadoPago', true, updated.instagram)),
+                sendWhatsApp('+59897183275', getAdminWhatsAppText(updated.firstName, updated.lastName, eventInfo.type, eventDateStr, updated.email, updated.phone, 'MercadoPago', true, updated.instagram)),
+                // Notificar al participante
+                updated.email ? sendEmail(updated.email, `¡Tu lugar está confirmado! - ${eventInfo.type}`, getPaymentConfirmedEmailHtml(updated.firstName, eventInfo.type, eventDateStr)) : Promise.resolve(),
+                updated.phone ? sendWhatsApp(updated.phone, getPaymentConfirmedWhatsAppText(updated.firstName, eventInfo.type, eventDateStr)) : Promise.resolve(),
               ]);
             }
           } catch (notifError) {
             console.error('Error enviando notificaciones de pago:', notifError);
           }
-
-        } else if (existing?.paid) {
+        } else {
           console.log(`ℹ️  Webhook: Pago ya estaba confirmado para ${registrationId}`);
         }
       }

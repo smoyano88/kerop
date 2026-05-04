@@ -31,36 +31,29 @@ export async function GET(request: Request) {
           where: { id: registrationId as string },
         });
 
-        if (existing && !existing.paid) {
-          await prisma.registration.update({
-            where: { id: registrationId as string },
-            data: { paid: true, paymentId: paymentInfo.id!.toString() },
-          });
+        // Actualización atómica — solo actualiza si paid=false, evita race con el webhook
+        const { count } = await prisma.registration.updateMany({
+          where: { id: registrationId as string, paid: false },
+          data: { paid: true, paymentId: paymentInfo.id!.toString() },
+        });
 
-          // Notificar al admin (el webhook puede no haber llegado aún o llegar después)
+        if (count > 0 && existing) {
           try {
             const eventInfo = existing.eventId
               ? await prisma.event.findUnique({ where: { id: existing.eventId } })
               : null;
             if (eventInfo) {
               const eventDateStr = new Date(eventInfo.date).toLocaleDateString('es-UY');
-              const { sendEmail, getAdminNotificationHtml } = await import('@/lib/email');
-              const { sendWhatsApp, getAdminWhatsAppText } = await import('@/lib/whatsapp');
+              const { sendEmail, getAdminNotificationHtml, getPaymentConfirmedEmailHtml } = await import('@/lib/email');
+              const { sendWhatsApp, getAdminWhatsAppText, getPaymentConfirmedWhatsAppText } = await import('@/lib/whatsapp');
               const { sendPushNotification } = await import('@/lib/push');
               await Promise.all([
-                sendPushNotification(
-                  'Pago Confirmado (MP) 💰',
-                  `${existing.firstName} ${existing.lastName} pagó su entrada para ${eventInfo.type}.`
-                ),
-                sendEmail(
-                  'smoyano1988@gmail.com',
-                  `Pago Confirmado - ${eventInfo.type}`,
-                  getAdminNotificationHtml(existing.firstName, existing.lastName, eventInfo.type, eventDateStr, existing.email, existing.phone, 'MercadoPago', true, existing.instagram)
-                ),
-                sendWhatsApp(
-                  '+59897183275',
-                  getAdminWhatsAppText(existing.firstName, existing.lastName, eventInfo.type, eventDateStr, existing.email, existing.phone, 'MercadoPago', true, existing.instagram)
-                ),
+                sendPushNotification('Pago Confirmado (MP) 💰', `${existing.firstName} ${existing.lastName} pagó su entrada para ${eventInfo.type}.`),
+                sendEmail('smoyano1988@gmail.com', `Pago Confirmado - ${eventInfo.type}`, getAdminNotificationHtml(existing.firstName, existing.lastName, eventInfo.type, eventDateStr, existing.email, existing.phone, 'MercadoPago', true, existing.instagram)),
+                sendWhatsApp('+59897183275', getAdminWhatsAppText(existing.firstName, existing.lastName, eventInfo.type, eventDateStr, existing.email, existing.phone, 'MercadoPago', true, existing.instagram)),
+                // Notificar al participante
+                existing.email ? sendEmail(existing.email, `¡Tu lugar está confirmado! - ${eventInfo.type}`, getPaymentConfirmedEmailHtml(existing.firstName, eventInfo.type, eventDateStr)) : Promise.resolve(),
+                existing.phone ? sendWhatsApp(existing.phone, getPaymentConfirmedWhatsAppText(existing.firstName, eventInfo.type, eventDateStr)) : Promise.resolve(),
               ]);
             }
           } catch (notifErr) {

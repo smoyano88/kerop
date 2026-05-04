@@ -80,6 +80,13 @@ export const getRegistrationWhatsAppText = (
   return text;
 };
 
+export const getPaymentConfirmedWhatsAppText = (
+  firstName: string,
+  eventName: string,
+  eventDate: string,
+) =>
+  `✅ *¡Tu lugar está confirmado, ${firstName}!*\n\nTu pago fue aprobado y tu inscripción al *Speed Dating: ${eventName}* del ${eventDate} quedó asegurada.\n\n¡Nos vemos en Kerop! ☕🖤`;
+
 export const getAdminWhatsAppText = (
   firstName: string,
   lastName: string,
