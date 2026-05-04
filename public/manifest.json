@@ -3,22 +3,41 @@
   "short_name": "Kerop",
   "description": "Panel de administración de Speed Dating - Kerop Café & Tattoo",
   "start_url": "/admin",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#FF107A",
-  "orientation": "portrait",
+  "orientation": "portrait-primary",
   "icons": [
     {
       "src": "/img/logo.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/img/logo.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/img/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Matches",
+      "url": "/admin",
+      "description": "Ver matches del último evento"
+    },
+    {
+      "name": "Participantes",
+      "url": "/admin",
+      "description": "Ver base de participantes"
     }
   ]
 }

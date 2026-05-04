@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -35,7 +35,10 @@ interface Registration {
   phone?: string;
   instagram?: string;
   selectedDrink: string;
-  eventId: string;
+  eventId: string | null;
+  archivedEventId: string | null;
+  eventType: string | null;
+  eventDate: string | null;
   paid: boolean;
   attended?: boolean;
   paymentMethod?: string;
@@ -48,7 +51,7 @@ interface RegistrationWithEvent extends Registration {
     type: string;
     date: string;
     ageRange: string;
-  };
+  } | null;
 }
 
 interface ParticipantGroup {
@@ -96,9 +99,23 @@ export default function AdminClient({ events }: { events: Event[] }) {
   const [matchResults, setMatchResults] = useState<any>(null);
   const [matchLoading, setMatchLoading] = useState(false);
 
+  // Repeated match state: eventId -> { regId -> prior match partner info[] }
+  const [repeatedMatchData, setRepeatedMatchData] = useState<Record<string, Record<string, { firstName: string; lastName: string; instagram: string | null }[]>>>({});
+
+  // Global tooltip state
+  const [tooltip, setTooltip] = useState<{ text: string; x: number; y: number } | null>(null);
+  const tooltipHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showTooltip = (text: string, e: React.MouseEvent) => {
+    if (tooltipHideTimer.current) clearTimeout(tooltipHideTimer.current);
+    setTooltip({ text, x: e.clientX, y: e.clientY });
+  };
+  const hideTooltip = () => {
+    tooltipHideTimer.current = setTimeout(() => setTooltip(null), 80);
+  };
+
   const reloadEvents = async () => {
     try {
-      const res = await fetch('/api/events');
+      const res = await fetch('/api/events?scope=admin');
       const data = await res.json();
       setEventList(data);
     } catch (e) {
@@ -112,7 +129,8 @@ export default function AdminClient({ events }: { events: Event[] }) {
       const regs: RegistrationWithEvent[] = await fetch('/api/registrations').then(r => r.json());
       setAllRegistrations(regs);
 
-      const eventIds = [...new Set(regs.map(r => r.eventId))];
+      // Usamos eventId vivo o archivado para no perder agrupación tras eliminar evento
+      const eventIds = [...new Set(regs.map(r => r.eventId ?? r.archivedEventId).filter(Boolean))] as string[];
       const matchResults = await Promise.all(
         eventIds.map(eventId => fetch(`/api/matches?eventId=${eventId}`).then(r => r.json()))
       );
@@ -127,9 +145,11 @@ export default function AdminClient({ events }: { events: Event[] }) {
   };
 
   const getMatchesForReg = (reg: RegistrationWithEvent): RegistrationWithEvent[] => {
-    const matchData = matchDataByEvent[reg.eventId];
+    const groupId = reg.eventId ?? reg.archivedEventId;
+    if (!groupId) return [];
+    const matchData = matchDataByEvent[groupId];
     if (!matchData?.selections) return [];
-    const eventRegs = allRegistrations.filter(r => r.eventId === reg.eventId);
+    const eventRegs = allRegistrations.filter(r => (r.eventId ?? r.archivedEventId) === groupId);
     const mySelections: string[] = matchData.selections[reg.id] || [];
     return eventRegs.filter(other =>
       other.id !== reg.id &&
@@ -138,8 +158,26 @@ export default function AdminClient({ events }: { events: Event[] }) {
     );
   };
 
+  // Fetch repeated match data when an event is expanded
+  useEffect(() => {
+    if (!expandedEvent || repeatedMatchData[expandedEvent]) return;
+    fetch(`/api/matches/repeated?eventId=${expandedEvent}`)
+      .then(r => r.json())
+      .then(data => {
+        setRepeatedMatchData(prev => ({ ...prev, [expandedEvent]: data.priorMatches || {} }));
+      })
+      .catch(() => {});
+  }, [expandedEvent]);
+
   /* ── Auth State: login una sola vez ── */
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // Auto-load participantes al entrar al tab (después de declarar isAuthenticated)
+  useEffect(() => {
+    if (activeTab === 'participants' && isAuthenticated && allRegistrations.length === 0 && !participantsLoading) {
+      loadParticipants();
+    }
+  }, [activeTab, isAuthenticated]);
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -148,6 +186,9 @@ export default function AdminClient({ events }: { events: Event[] }) {
   /* ── Change Password State ── */
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  /* ── Create Event Form State ── */
+  const [createEventType, setCreateEventType] = useState('');
 
   /* ── Drink Tag State ── */
   const [selectedDrinks, setSelectedDrinks] = useState<string[]>([
@@ -217,7 +258,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
   }
 
   const handleDeleteEvent = async (eventId: string) => {
-    if (!window.confirm('¿Estás seguro de que querés eliminar este evento? Se borrarán también todos los inscriptos.')) return;
+    if (!window.confirm('¿Estás seguro de que querés eliminar este evento? Los inscriptos quedarán en la base de datos de participantes.')) return;
 
     try {
       const res = await fetch(`/api/events/${eventId}`, {
@@ -245,6 +286,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
       
       showSuccess('✅ Inscripción eliminada.');
       await reloadEvents();
+      if (activeTab === 'participants') await loadParticipants();
     } catch (err: any) {
       alert(err.message);
     }
@@ -261,6 +303,21 @@ export default function AdminClient({ events }: { events: Event[] }) {
       
       showSuccess('✅ Pago confirmado correctamente.');
       await reloadEvents();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const handleDeleteParticipant = async (regIds: string[], name: string) => {
+    if (!window.confirm(`¿Eliminar a ${name} de la base de datos? Se borrarán ${regIds.length} inscripción/nes.`)) return;
+    try {
+      await Promise.all(
+        regIds.map(id =>
+          fetch(`/api/registrations/${id}?pwd=${encodeURIComponent(currentAdminPassword)}`, { method: 'DELETE' })
+        )
+      );
+      showSuccess(`✅ ${name} eliminado/a de la base de datos.`);
+      await loadParticipants();
     } catch (err: any) {
       alert(err.message);
     }
@@ -390,6 +447,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
 
       showSuccess('✅ Evento creado correctamente.');
       (e.target as HTMLFormElement).reset();
+      setCreateEventType('');
       await reloadEvents();
       setActiveTab('events');
     } catch (err: any) {
@@ -443,6 +501,29 @@ export default function AdminClient({ events }: { events: Event[] }) {
 
   return (
     <div className="admin-layout-v2">
+      {/* ── Global prior-match tooltip ── */}
+      {tooltip && (
+        <div style={{
+          position: 'fixed',
+          left: Math.min(tooltip.x + 12, window.innerWidth - 360),
+          top: tooltip.y - 8,
+          transform: 'translateY(-100%)',
+          background: '#0a0a0a',
+          color: '#fff',
+          padding: '0.5rem 0.85rem',
+          borderRadius: '8px',
+          fontSize: '0.8rem',
+          border: '1px solid var(--neon-pink)',
+          boxShadow: '0 0 12px rgba(255,16,122,0.6), 0 0 24px rgba(255,16,122,0.2)',
+          zIndex: 9999,
+          maxWidth: 'min(340px, 80vw)',
+          whiteSpace: 'normal',
+          lineHeight: 1.5,
+          pointerEvents: 'none',
+        }}>
+          {tooltip.text}
+        </div>
+      )}
       {/* ── Desktop Sidebar ── */}
       <div className={`admin-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
         <div className="admin-sidebar-header">
@@ -568,8 +649,8 @@ export default function AdminClient({ events }: { events: Event[] }) {
                   
                   const isHH = ev.type === 'Ellos y Ellos';
                   const isMM = ev.type === 'Ellas y Ellas';
-                  const totalSpotsMen = isHH ? ev.spotsPerGender * 2 : ev.spotsPerGender;
-                  const totalSpotsWomen = isMM ? ev.spotsPerGender * 2 : ev.spotsPerGender;
+                  const totalSpotsMen = ev.spotsPerGender;
+                  const totalSpotsWomen = ev.spotsPerGender;
                   const registeredMen = ev.registrations.filter(r => r.gender === 'Hombre').length;
                   const registeredWomen = ev.registrations.filter(r => r.gender === 'Mujer').length;
                   const paidMen = ev.registrations.filter(r => r.paid && r.gender === 'Hombre').length;
@@ -688,10 +769,29 @@ export default function AdminClient({ events }: { events: Event[] }) {
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {ev.registrations.map((reg, idx) => (
-                                    <tr key={reg.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                  {ev.registrations.map((reg, idx) => {
+                                    const allPriorPartners = repeatedMatchData[ev.id]?.[reg.id] || [];
+                                    // Filter to only partners who are also in this event
+                                    const identityOf = (r: { instagram?: string | null; firstName: string; lastName: string }) =>
+                                      r.instagram ? r.instagram.toLowerCase().replace('@', '').trim() : `${r.firstName}_${r.lastName}`.toLowerCase().trim();
+                                    const currentIdentities = new Set(ev.registrations.map(identityOf));
+                                    const priorMatchHere = allPriorPartners.filter(p => currentIdentities.has(identityOf(p)));
+                                    const hasPriorMatch = priorMatchHere.length > 0;
+                                    return (
+                                    <tr key={reg.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: hasPriorMatch ? 'rgba(255,221,0,0.18)' : undefined, boxShadow: hasPriorMatch ? 'inset 3px 0 0 #ffdd00' : undefined }}>
                                       <td style={{ padding: '0.6rem 0.8rem', color: 'var(--text-muted)' }}>{idx + 1}</td>
-                                      <td style={{ padding: '0.6rem 0.8rem', fontWeight: 600, whiteSpace: 'nowrap' }}>{reg.firstName} {reg.lastName}</td>
+                                      <td style={{ padding: '0.6rem 0.8rem', fontWeight: 600, whiteSpace: 'nowrap', color: hasPriorMatch ? 'var(--neon-pink)' : undefined }}>
+                                        {reg.firstName} {reg.lastName}
+                                        {hasPriorMatch && (
+                                          <span
+                                            className="prior-match-badge"
+                                            onMouseEnter={e => showTooltip(`Match previo con: ${priorMatchHere.map(p => `${p.firstName} ${p.lastName}${p.instagram ? ` (${p.instagram})` : ''}`).join(', ')}`, e)}
+                                            onMouseLeave={hideTooltip}
+                                          >
+                                            💞
+                                          </span>
+                                        )}
+                                      </td>
                                       <td style={{ padding: '0.6rem 0.8rem', color: 'var(--text-muted)' }}>{reg.gender === 'Hombre' ? '👨' : '👩'}</td>
                                       <td style={{ padding: '0.6rem 0.8rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }} title={reg.selectedDrink}>
                                         <span style={{ 
@@ -710,39 +810,40 @@ export default function AdminClient({ events }: { events: Event[] }) {
                                       </td>
                                       <td style={{ padding: '0.4rem 0.8rem', textAlign: 'center' }}>
                                         {reg.paid ? (
-                                          <span style={{ background: 'rgba(57,255,20,0.1)', color: 'var(--neon-green)', padding: '0.15rem 0.5rem', borderRadius: '50px', fontSize: '0.75rem', border: '1px solid rgba(57,255,20,0.2)' }}>
+                                          <span style={{ background: 'rgba(57,255,20,0.1)', color: 'var(--neon-green)', padding: '0.15rem 0.5rem', borderRadius: '50px', fontSize: '0.75rem', border: '1px solid rgba(57,255,20,0.2)', whiteSpace: 'nowrap' }}>
                                             ✅ Pagado
                                           </span>
                                         ) : (
-                                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                                            <span style={{ background: 'rgba(255,16,122,0.1)', color: 'var(--neon-pink)', padding: '0.15rem 0.5rem', borderRadius: '50px', fontSize: '0.75rem', border: '1px solid rgba(255,16,122,0.2)' }}>
-                                              ❌ Pendiente
-                                            </span>
-                                            {reg.paymentMethod === 'transfer' && (
-                                              <button 
-                                                onClick={() => handleMarkAsPaid(reg.id, reg.firstName)}
-                                                style={{ background: 'rgba(57,255,20,0.2)', color: 'var(--neon-green)', border: '1px solid rgba(57,255,20,0.4)', borderRadius: '4px', fontSize: '0.7rem', padding: '0.15rem 0.3rem', cursor: 'pointer' }}
-                                                title="Confirmar transferencia"
-                                              >
-                                                💰 Ok
-                                              </button>
-                                            )}
-                                          </div>
+                                          <span style={{ background: 'rgba(255,16,122,0.1)', color: 'var(--neon-pink)', padding: '0.15rem 0.5rem', borderRadius: '50px', fontSize: '0.75rem', border: '1px solid rgba(255,16,122,0.2)', whiteSpace: 'nowrap' }}>
+                                            ⏳ Pendiente
+                                          </span>
                                         )}
                                       </td>
                                       <td style={{ padding: '0.4rem 0.8rem', textAlign: 'center' }}>
-                                        <button 
-                                          onClick={() => handleDeleteRegistration(reg.id, `${reg.firstName} ${reg.lastName}`)}
-                                          style={{ background: 'none', border: 'none', color: 'var(--neon-pink)', cursor: 'pointer', fontSize: '1.1rem', opacity: 0.7 }}
-                                          title="Eliminar inscripto"
-                                          onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
-                                          onMouseLeave={(e) => e.currentTarget.style.opacity = '0.7'}
-                                        >
-                                          🗑️
-                                        </button>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
+                                          {!reg.paid && reg.paymentMethod === 'transfer' && (
+                                            <button
+                                              onClick={() => handleMarkAsPaid(reg.id, reg.firstName)}
+                                              style={{ background: 'rgba(57,255,20,0.15)', color: 'var(--neon-green)', border: '1px solid rgba(57,255,20,0.4)', borderRadius: '6px', fontSize: '0.75rem', padding: '0.25rem 0.5rem', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                                              title="Confirmar pago por transferencia"
+                                            >
+                                              💰 Pagó
+                                            </button>
+                                          )}
+                                          <button
+                                            onClick={() => handleDeleteRegistration(reg.id, `${reg.firstName} ${reg.lastName}`)}
+                                            style={{ background: 'none', border: 'none', color: 'var(--neon-pink)', cursor: 'pointer', fontSize: '1.1rem', opacity: 0.7 }}
+                                            title="Eliminar inscripto"
+                                            onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+                                            onMouseLeave={(e) => e.currentTarget.style.opacity = '0.7'}
+                                          >
+                                            🗑️
+                                          </button>
+                                        </div>
                                       </td>
                                     </tr>
-                                  ))}
+                                    );
+                                  })}
                                 </tbody>
                               </table>
                             </div>
@@ -766,7 +867,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
             <form onSubmit={handleCreateEvent} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               <div>
                 <label className="input-label">Categoría del Evento</label>
-                <select name="type" required defaultValue="" className="input-field">
+                <select name="type" required value={createEventType} onChange={e => setCreateEventType(e.target.value)} className="input-field">
                   <option value="" disabled>Seleccioná categoría...</option>
                   <option value="Ellos y Ellas">Ellos y Ellas (H/M)</option>
                   <option value="Ellas y Ellas">Ellas y Ellas (M/M)</option>
@@ -800,8 +901,22 @@ export default function AdminClient({ events }: { events: Event[] }) {
                   <input type="text" name="ageRange" required className="input-field" placeholder="Ej: 25 a 35 años" />
                 </div>
                 <div>
-                  <label className="input-label">Cupos por Género</label>
+                  <label className="input-label">
+                    {createEventType === 'Ellos y Ellos' || createEventType === 'Ellas y Ellas'
+                      ? 'Cupo Total'
+                      : 'Cupos por Género'}
+                  </label>
                   <input type="number" name="spotsPerGender" required className="input-field" defaultValue="8" min="1" max="100" />
+                  {(createEventType === 'Ellos y Ellos' || createEventType === 'Ellas y Ellas') && (
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '0.3rem' }}>
+                      Para eventos mismo sexo es el cupo total del evento.
+                    </p>
+                  )}
+                  {createEventType === 'Ellos y Ellas' && (
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '0.3rem' }}>
+                      Se aplica por separado a Hombres y Mujeres (total = ×2).
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -952,11 +1067,10 @@ export default function AdminClient({ events }: { events: Event[] }) {
 
         {/* ─── TAB: MATCHES ─── */}
         {activeTab === 'matches' && (() => {
-          // Eventos con cupo completo (todos los pagados = spotsPerGender * 2 para mixto)
+          // Eventos con cupo completo: mixto = spotsPerGender * 2 (hombres + mujeres), HH/MM = spotsPerGender total
           const fullEvents = eventList.filter(ev => {
-            const isHH = ev.type === 'Ellos y Ellos';
-            const isMM = ev.type === 'Ellas y Ellas';
-            const totalSpots = isHH || isMM ? ev.spotsPerGender * 2 : ev.spotsPerGender * 2;
+            const isHomo = ev.type === 'Ellos y Ellos' || ev.type === 'Ellas y Ellas';
+            const totalSpots = isHomo ? ev.spotsPerGender : ev.spotsPerGender * 2;
             const paidCount = ev.registrations.filter(r => r.paid).length;
             return paidCount >= totalSpots;
           });
@@ -1119,14 +1233,19 @@ export default function AdminClient({ events }: { events: Event[] }) {
           );
 
           const handleCreateTestEvent = async () => {
-            const spots = prompt('¿Cuántos cupos por género? (ej: 5 = 5 hombres + 5 mujeres)');
+            const typeChoice = prompt('Tipo de evento:\n1 = Ellos y Ellas (Mixto)\n2 = Ellos y Ellos (HH)\n3 = Ellas y Ellas (MM)');
+            if (!typeChoice) return;
+            const typeMap: Record<string, string> = { '1': 'Ellos y Ellas', '2': 'Ellos y Ellos', '3': 'Ellas y Ellas' };
+            const eventType = typeMap[typeChoice.trim()];
+            if (!eventType) { alert('Opción inválida. Ingresá 1, 2 o 3.'); return; }
+            const spots = prompt('¿Cuántos cupos por género? (ej: 4)');
             if (!spots) return;
             setMatchLoading(true);
             try {
               const res = await fetch('/api/test-event', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password: currentAdminPassword, spotsPerGender: parseInt(spots) }),
+                body: JSON.stringify({ password: currentAdminPassword, spotsPerGender: parseInt(spots), type: eventType }),
               });
               const data = await res.json();
               if (data.ok) {
@@ -1225,6 +1344,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
               {matchResults && (() => {
                 const menSummary = matchResults.summary.filter((s: any) => s.person.gender === 'Hombre');
                 const womenSummary = matchResults.summary.filter((s: any) => s.person.gender === 'Mujer');
+                const isHomoResults = isHomoEvent;
 
                 const renderPersonCard = (item: any) => {
                   const hasMatch = item.matches.length > 0;
@@ -1305,24 +1425,31 @@ export default function AdminClient({ events }: { events: Event[] }) {
                       </div>
                     )}
 
-                    {/* Dos columnas: Hombres | Mujeres */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                      {/* Columna Hombres */}
+                    {isHomoResults ? (
                       <div>
-                        <div style={{ textAlign: 'center', marginBottom: '0.75rem', padding: '0.5rem', background: 'rgba(0,150,255,0.08)', borderRadius: '8px', border: '1px solid rgba(0,150,255,0.15)' }}>
-                          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'rgba(100,180,255,1)', letterSpacing: '0.5px' }}>🙋‍♂️ HOMBRES</span>
+                        <div style={{ textAlign: 'center', marginBottom: '0.75rem', padding: '0.5rem', background: 'linear-gradient(90deg, rgba(255,0,0,0.08), rgba(255,165,0,0.08), rgba(255,255,0,0.08), rgba(0,200,0,0.08), rgba(0,100,255,0.08), rgba(150,0,255,0.08))', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'white', letterSpacing: '0.5px' }}>🏳️‍🌈 PARTICIPANTES</span>
                         </div>
-                        {menSummary.map((item: any) => renderPersonCard(item))}
-                      </div>
-
-                      {/* Columna Mujeres */}
-                      <div>
-                        <div style={{ textAlign: 'center', marginBottom: '0.75rem', padding: '0.5rem', background: 'rgba(255,16,122,0.08)', borderRadius: '8px', border: '1px solid rgba(255,16,122,0.15)' }}>
-                          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--neon-pink)', letterSpacing: '0.5px' }}>🙋‍♀️ MUJERES</span>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '0.5rem' }}>
+                          {matchResults.summary.map((item: any) => renderPersonCard(item))}
                         </div>
-                        {womenSummary.map((item: any) => renderPersonCard(item))}
                       </div>
-                    </div>
+                    ) : (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        <div>
+                          <div style={{ textAlign: 'center', marginBottom: '0.75rem', padding: '0.5rem', background: 'rgba(0,150,255,0.08)', borderRadius: '8px', border: '1px solid rgba(0,150,255,0.15)' }}>
+                            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'rgba(100,180,255,1)', letterSpacing: '0.5px' }}>🙋‍♂️ HOMBRES</span>
+                          </div>
+                          {menSummary.map((item: any) => renderPersonCard(item))}
+                        </div>
+                        <div>
+                          <div style={{ textAlign: 'center', marginBottom: '0.75rem', padding: '0.5rem', background: 'rgba(255,16,122,0.08)', borderRadius: '8px', border: '1px solid rgba(255,16,122,0.15)' }}>
+                            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--neon-pink)', letterSpacing: '0.5px' }}>🙋‍♀️ MUJERES</span>
+                          </div>
+                          {womenSummary.map((item: any) => renderPersonCard(item))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })()}
@@ -1439,7 +1566,9 @@ export default function AdminClient({ events }: { events: Event[] }) {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
                 {[
                   { label: 'Participantes únicos', value: allGroups.length, color: 'var(--neon-cyan)' },
-                  { label: 'Inscripciones totales', value: allRegistrations.length, color: 'var(--neon-green)' },
+                  { label: 'Inscripciones totales', value: allRegistrations.length, color: 'white' },
+                  { label: 'Pagados', value: allRegistrations.filter(r => r.paid).length, color: 'var(--neon-green)' },
+                  { label: 'Asistieron', value: allRegistrations.filter(r => r.paid && r.attended !== false).length, color: 'rgba(100,180,255,1)' },
                   { label: 'Matches generados', value: Math.floor(totalMatches), color: 'var(--neon-pink)' },
                 ].map(stat => (
                   <div key={stat.label} style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)', textAlign: 'center' }}>
@@ -1475,11 +1604,11 @@ export default function AdminClient({ events }: { events: Event[] }) {
                     return (
                       <div key={participant.key} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px', overflow: 'hidden' }}>
                         {/* Fila del participante */}
-                        <div
-                          onClick={() => setExpandedParticipant(isExpanded ? null : participant.key)}
-                          style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', padding: '1rem 1.25rem', cursor: 'pointer', gap: '1rem' }}
-                        >
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', alignItems: 'center' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', padding: '1rem 1.25rem', gap: '1rem' }}>
+                          <div
+                            onClick={() => setExpandedParticipant(isExpanded ? null : participant.key)}
+                            style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center', cursor: 'pointer' }}
+                          >
                             <div>
                               <div style={{ fontWeight: 600, fontSize: '1rem' }}>{participant.firstName} {participant.lastName}</div>
                               <div style={{ color: 'var(--neon-cyan)', fontSize: '0.85rem', marginTop: '0.15rem' }}>{participant.instagram || <span style={{ color: 'var(--text-muted)' }}>Sin Instagram</span>}</div>
@@ -1493,8 +1622,15 @@ export default function AdminClient({ events }: { events: Event[] }) {
                                 💘 {totalMatchCount} match{totalMatchCount !== 1 ? 'es' : ''}
                               </span>
                             )}
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{isExpanded ? '▲' : '▼'}</span>
                           </div>
-                          <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{isExpanded ? '▲' : '▼'}</span>
+                          <button
+                            onClick={() => handleDeleteParticipant(participant.registrations.map(r => r.id), `${participant.firstName} ${participant.lastName}`)}
+                            title="Eliminar de la base de datos"
+                            style={{ background: 'rgba(255,16,122,0.08)', border: '1px solid rgba(255,16,122,0.2)', color: 'var(--neon-pink)', padding: '0.4rem 0.7rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap', flexShrink: 0 }}
+                          >
+                            🗑️ Eliminar
+                          </button>
                         </div>
 
                         {/* Detalle expandido */}
@@ -1504,13 +1640,22 @@ export default function AdminClient({ events }: { events: Event[] }) {
                               .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                               .map(reg => {
                                 const matches = getMatchesForReg(reg);
+                                const payLabel = reg.paymentMethod === 'mercadopago'
+                                  ? '💳 MercadoPago'
+                                  : reg.paymentMethod === 'transfer'
+                                    ? '🏦 Transferencia'
+                                    : '—';
+                                const attended = reg.attended !== false;
                                 return (
                                   <div key={reg.id} style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '1rem', border: '1px solid rgba(255,255,255,0.05)' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
                                       <div>
-                                        <div style={{ fontWeight: 600, color: 'white' }}>{reg.event.type}</div>
+                                        <div style={{ fontWeight: 600, color: 'white' }}>
+                                          {reg.event?.type ?? reg.eventType ?? <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Evento eliminado</span>}
+                                          {!reg.event && (reg.eventType || reg.eventDate) && <span style={{ marginLeft: '0.4rem', fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>(eliminado)</span>}
+                                        </div>
                                         <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                                          {format(new Date(reg.event.date), "dd/MM/yyyy 'a las' HH:mm")} · Registrado el {format(new Date(reg.createdAt), "dd/MM/yyyy")}
+                                          {(reg.event?.date ?? reg.eventDate) ? format(new Date((reg.event?.date ?? reg.eventDate)!), "dd/MM/yyyy 'a las' HH:mm") + ' · ' : ''}Registrado el {format(new Date(reg.createdAt), "dd/MM/yyyy")}
                                         </div>
                                       </div>
                                       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -1518,10 +1663,29 @@ export default function AdminClient({ events }: { events: Event[] }) {
                                           {reg.paid ? '✅ Pagado' : '⏳ Pendiente'}
                                         </span>
                                         <span style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', borderRadius: '50px', padding: '0.15rem 0.6rem', fontSize: '0.75rem' }}>
+                                          {payLabel}
+                                        </span>
+                                        {reg.paid && (
+                                          <span style={{ background: attended ? 'rgba(57,255,20,0.08)' : 'rgba(255,80,80,0.1)', color: attended ? 'var(--neon-green)' : '#ff8080', border: `1px solid ${attended ? 'rgba(57,255,20,0.2)' : 'rgba(255,80,80,0.25)'}`, borderRadius: '50px', padding: '0.15rem 0.6rem', fontSize: '0.75rem' }}>
+                                            {attended ? '🎟️ Asistió' : '🚫 No asistió'}
+                                          </span>
+                                        )}
+                                        <span style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', borderRadius: '50px', padding: '0.15rem 0.6rem', fontSize: '0.75rem' }}>
                                           {reg.gender === 'Hombre' ? '👨 Hombre' : '👩 Mujer'}
                                         </span>
                                       </div>
                                     </div>
+
+                                    {!reg.paid && (
+                                      <div style={{ marginBottom: matches.length > 0 ? '0.75rem' : 0 }}>
+                                        <button
+                                          onClick={async () => { await handleMarkAsPaid(reg.id, `${reg.firstName} ${reg.lastName}`); await loadParticipants(); }}
+                                          style={{ background: 'rgba(57,255,20,0.1)', border: '1px solid rgba(57,255,20,0.3)', color: 'var(--neon-green)', padding: '0.35rem 0.75rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem' }}
+                                        >
+                                          ✅ Marcar como pagado
+                                        </button>
+                                      </div>
+                                    )}
                                     {matches.length > 0 ? (
                                       <div>
                                         <div style={{ fontSize: '0.78rem', color: 'var(--neon-pink)', textTransform: 'uppercase', marginBottom: '0.4rem', fontWeight: 600 }}>💘 Matches en este evento</div>

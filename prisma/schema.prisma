@@ -27,21 +27,24 @@ model Event {
 }
 
 model Registration {
-  id            String   @id @default(uuid())
-  firstName     String
-  lastName      String
-  gender        String
-  email         String?
-  phone         String?
-  instagram     String?
-  selectedDrink String
-  eventId       String
-  paid          Boolean  @default(false)
-  attended      Boolean  @default(true)
-  paymentMethod String?
-  paymentId     String?
-  event         Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  createdAt     DateTime @default(now())
+  id              String   @id @default(uuid())
+  firstName       String
+  lastName        String
+  gender          String
+  email           String?
+  phone           String?
+  instagram       String?
+  selectedDrink   String
+  eventId         String?
+  archivedEventId String?  // Se llena al eliminar el evento para preservar agrupación
+  eventType       String?
+  eventDate       DateTime?
+  paid            Boolean  @default(false)
+  attended        Boolean  @default(false)
+  paymentMethod   String?
+  paymentId       String?
+  event           Event?   @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  createdAt       DateTime @default(now())
 }
 
 model Setting {
@@ -58,9 +61,10 @@ model PushSubscription {
 }
 
 model MatchData {
-  id         String   @id @default(uuid())
-  eventId    String   @unique
-  event      Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  id              String   @id @default(uuid())
+  eventId         String?  @unique
+  archivedEventId String?  // Se llena al eliminar el evento para preservar agrupación
+  event           Event?   @relation(fields: [eventId], references: [id], onDelete: SetNull)
   // JSON: { "regId1": ["regId3", "regId5"], "regId2": ["regId1"] }
   // Cada key = participante, array = los que marcó como "me gustó"
   selections Json     @default("{}")

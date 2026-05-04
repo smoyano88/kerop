@@ -1,29 +1,34 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 
 export default function Preloader() {
   const [visible, setVisible] = useState(true);
   const [fadeOut, setFadeOut] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
-    // Solo mostrar una vez por sesión
+    // No mostrar el preloader en páginas de impresión
+    if (pathname?.includes('/planilla')) {
+      setVisible(false);
+      return;
+    }
+
     const already = sessionStorage.getItem('kerop-preloaded');
     if (already) {
       setVisible(false);
       return;
     }
 
-    // Comenzar fade out después de 2.2s
     const timer = setTimeout(() => {
       setFadeOut(true);
       sessionStorage.setItem('kerop-preloaded', '1');
-    }, 2200);
+    }, 2500);
 
-    // Remover del DOM después de la animación de fade
     const removeTimer = setTimeout(() => {
       setVisible(false);
-    }, 2800);
+    }, 3200);
 
     return () => {
       clearTimeout(timer);
@@ -36,8 +41,22 @@ export default function Preloader() {
   return (
     <div className={`preloader ${fadeOut ? 'preloader-fadeout' : ''}`}>
       <div className="preloader-content">
-        <div className="preloader-logo">KEROP</div>
-        <div className="preloader-tagline">café &amp; tattoo</div>
+        <div className="preloader-letters">
+          {'KEROP'.split('').map((letter, i) => (
+            <span
+              key={i}
+              className="preloader-letter"
+              style={{ '--i': i } as React.CSSProperties}
+            >
+              {letter}
+            </span>
+          ))}
+          <div className="preloader-scanline-wrap">
+            <div className="preloader-scanline" />
+          </div>
+        </div>
+        <div className="preloader-tagline">speed dating</div>
+        <div className="preloader-line" />
       </div>
     </div>
   );

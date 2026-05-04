@@ -58,7 +58,7 @@ export const getRegistrationEmailHtml = (
             <a href="${paymentLink}" style="background-color: #00ffff; color: #000; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Pagar con MercadoPago</a>
           </div>
         ` : `
-          <p style="color: #ccc; font-size: 14px;">Elegiste pagar por transferencia bancaria. Por favor, enviá el comprobante por WhatsApp o Instagram para asegurar tu lugar.</p>
+          <p style="color: #ccc; font-size: 14px;">Elegiste pagar por transferencia bancaria. Una vez realizada, enviá el comprobante por DM a nuestro Instagram <strong style="color: #fff;">@kerop.uy</strong> para confirmar tu lugar.</p>
           <div style="background-color: #111; padding: 15px; border-radius: 5px; margin-top: 15px;">
             <p style="margin: 0 0 10px 0; color: #fff;"><strong>Mariana Ganimian</strong></p>
             <p style="margin: 0 0 5px 0; color: #ccc; font-size: 13px;"><strong>Dentro de Santander:</strong> Cuenta 1201993896 / Suc. 19-Carrasco</p>

@@ -5,6 +5,7 @@ import {
   mercadoPagoClient,
   getPreferenceInitPoint,
 } from "@/lib/mercadopago";
+import { isReservationActive } from "@/lib/reservations";
 
 export async function GET(request: Request) {
   try {
@@ -48,67 +49,86 @@ export async function POST(request: Request) {
       instagram,
     } = body;
 
-    // 0. Validar Cupos (Backend Strict Check)
-    // Solo se cuentan registraciones PAGADAS — las pendientes no bloquean cupos
-    const event = await prisma.event.findUnique({
-      where: { id: eventId },
-      include: { registrations: { where: { paid: true } } },
-    });
-
-    if (!event) {
+    if (!phone && !email && !instagram) {
       return NextResponse.json(
-        { error: "Evento no encontrado" },
-        { status: 404 },
-      );
-    }
-
-    const isHH = event.type === "Ellos y Ellos";
-    const isMM = event.type === "Ellas y Ellas";
-    const totalCapacityMen = isHH
-      ? event.spotsPerGender * 2
-      : event.spotsPerGender;
-    const totalCapacityWomen = isMM
-      ? event.spotsPerGender * 2
-      : event.spotsPerGender;
-
-    const registeredMen = event.registrations.filter(
-      (r) => r.gender === "Hombre",
-    ).length;
-    const registeredWomen = event.registrations.filter(
-      (r) => r.gender === "Mujer",
-    ).length;
-
-    if (gender === "Hombre" && registeredMen >= totalCapacityMen) {
-      return NextResponse.json(
-        { error: "¡Ups! Ya no quedan cupos para Hombres en este evento." },
-        { status: 400 },
-      );
-    }
-    if (gender === "Mujer" && registeredWomen >= totalCapacityWomen) {
-      return NextResponse.json(
-        { error: "¡Ups! Ya no quedan cupos para Mujeres en este evento." },
+        { error: 'Se requiere al menos un dato de contacto (teléfono, email o Instagram).' },
         { status: 400 },
       );
     }
 
-    // 1. Guardar la registración como Pendiente
-    const registration = await prisma.registration.create({
-      data: {
-        firstName,
-        lastName,
-        gender,
-        selectedDrink,
-        eventId,
-        paid: false,
-        paymentMethod,
-        email: email || null,
-        phone: phone || null,
-        instagram: instagram || null,
-      },
-      include: { event: true },
-    });
+    // Validar y crear la registración en una transacción para evitar race conditions.
+    // El check de cupos y la creación son atómicos: dos requests simultáneos no pueden
+    // pasar el check al mismo tiempo y generar overbooking.
+    let registration: any;
+    let event: NonNullable<Awaited<ReturnType<typeof prisma.event.findUnique>>>;
 
-    const eventName = registration.event.type;
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        const ev = await tx.event.findUnique({
+          where: { id: eventId },
+          include: { registrations: true },
+        });
+
+        if (!ev) throw Object.assign(new Error("Evento no encontrado"), { status: 404 });
+
+        const isHH = ev.type === "Ellos y Ellos";
+        const isMM = ev.type === "Ellas y Ellas";
+        // Para HH/MM el campo es cupo total (no por género), para mixto es por género
+        const totalCapacityMen = ev.spotsPerGender;
+        const totalCapacityWomen = ev.spotsPerGender;
+
+        const activeRegs = ev.registrations.filter((r) => isReservationActive(r));
+        const registeredMen = activeRegs.filter((r) => r.gender === "Hombre").length;
+        const registeredWomen = activeRegs.filter((r) => r.gender === "Mujer").length;
+
+        if (gender === "Hombre" && registeredMen >= totalCapacityMen)
+          throw Object.assign(new Error("¡Ups! Ya no quedan cupos para Hombres en este evento."), { status: 400 });
+        if (gender === "Mujer" && registeredWomen >= totalCapacityWomen)
+          throw Object.assign(new Error("¡Ups! Ya no quedan cupos para Mujeres en este evento."), { status: 400 });
+
+        // Verificar duplicado por Instagram (case-insensitive)
+        if (instagram) {
+          const igHandle = instagram.startsWith('@') ? instagram : `@${instagram}`;
+          const existing = await tx.registration.findFirst({
+            where: { eventId, instagram: { equals: igHandle, mode: 'insensitive' } },
+          });
+          if (existing && isReservationActive(existing))
+            throw Object.assign(new Error('Ya existe una inscripción para este Instagram en este evento.'), { status: 400 });
+        }
+
+        const reg = await tx.registration.create({
+          data: {
+            firstName,
+            lastName,
+            gender,
+            selectedDrink,
+            event: { connect: { id: eventId } },
+            eventType: ev.type,
+            eventDate: ev.date,
+            paid: false,
+            paymentMethod,
+            email: email || null,
+            phone: phone || null,
+            instagram: instagram ? (instagram.startsWith('@') ? instagram : `@${instagram}`) : null,
+          },
+          include: { event: true },
+        });
+
+        return { ev, reg };
+      });
+
+      event = result.ev;
+      registration = result.reg as any;
+    } catch (txErr: any) {
+      const status = txErr.status || 500;
+      const message = txErr.message || "Error procesando el registro";
+      if (status !== 500) {
+        return NextResponse.json({ error: message }, { status });
+      }
+      throw txErr;
+    }
+
+    const eventName = event.type;
     const baseURL =
       process.env.NEXT_PUBLIC_BASE_URL ||
       request.headers.get("origin") ||
@@ -120,38 +140,42 @@ export async function POST(request: Request) {
     const { sendWhatsApp, getRegistrationWhatsAppText, getAdminWhatsAppText } = await import('@/lib/whatsapp');
     const { sendPushNotification } = await import('@/lib/push');
 
-    // --- NOTIFICACIÓN INMEDIATA AL ADMIN ---
-    // IMPORTANTE: usar await Promise.all() — en Vercel serverless las promesas sin await
-    // se cortan cuando retorna el NextResponse, por eso llegaban tarde.
-    await Promise.all([
-      sendPushNotification(
-        `Nuevo Registro - ${eventName}`,
-        `${firstName} ${lastName} se registró. (${paymentMethod === 'mercadopago' ? 'MP' : 'Transfer'})`
-      ),
-      sendEmail(
-        'smoyano1988@gmail.com',
-        `Nuevo Registro en Kerop - ${eventName}`,
-        getAdminNotificationHtml(firstName, lastName, eventName, eventDateStr, email, phone, paymentMethod === 'mercadopago' ? 'MercadoPago' : 'Transferencia', false, instagram)
-      ),
-      sendWhatsApp(
-        '+59897183275',
-        getAdminWhatsAppText(firstName, lastName, eventName, eventDateStr, email, phone, paymentMethod === 'mercadopago' ? 'MercadoPago' : 'Transferencia', false, instagram)
-      ),
-    ]);
-
-    // Si eligió transferencia, notificar al usuario y terminar
-    if (paymentMethod === "transfer") {
+    const notifyAdmin = async (method: string) => {
       await Promise.all([
-        email ? sendEmail(
-          email,
-          `¡Registro Iniciado en Kerop! - ${eventName}`,
-          getRegistrationEmailHtml(firstName, eventName, eventDateStr, 'transfer', event.price)
-        ) : Promise.resolve(),
-        phone ? sendWhatsApp(
-          phone,
-          getRegistrationWhatsAppText(firstName, eventName, eventDateStr, 'transfer', event.price)
-        ) : Promise.resolve(),
+        sendPushNotification(
+          `Nuevo Registro - ${eventName}`,
+          `${firstName} ${lastName} se registró. (${method === 'mercadopago' ? 'MP' : 'Transfer'})`
+        ),
+        sendEmail(
+          'smoyano1988@gmail.com',
+          `Nuevo Registro en Kerop - ${eventName}`,
+          getAdminNotificationHtml(firstName, lastName, eventName, eventDateStr, email, phone, method === 'mercadopago' ? 'MercadoPago' : 'Transferencia', false, instagram)
+        ),
+        sendWhatsApp(
+          '+59897183275',
+          getAdminWhatsAppText(firstName, lastName, eventName, eventDateStr, email, phone, method === 'mercadopago' ? 'MercadoPago' : 'Transferencia', false, instagram)
+        ),
       ]);
+    };
+
+    // Para transferencia la registración es definitiva — notificamos inmediatamente
+    if (paymentMethod === "transfer") {
+      try {
+        await Promise.all([
+          notifyAdmin('transfer'),
+          email ? sendEmail(
+            email,
+            `¡Registro Iniciado en Kerop! - ${eventName}`,
+            getRegistrationEmailHtml(firstName, eventName, eventDateStr, 'transfer', event.price)
+          ) : Promise.resolve(),
+          phone ? sendWhatsApp(
+            phone,
+            getRegistrationWhatsAppText(firstName, eventName, eventDateStr, 'transfer', event.price)
+          ) : Promise.resolve(),
+        ]);
+      } catch (notifErr) {
+        console.error('Error en notificaciones (transfer):', notifErr);
+      }
 
       return NextResponse.json({
         registration,
@@ -210,18 +234,23 @@ export async function POST(request: Request) {
         initPoint !== response.init_point,
       );
 
-      // --- NOTIFICACIÓN AL USUARIO CON LINK DE PAGO ---
-      await Promise.all([
-        email ? sendEmail(
-          email,
-          `Completa tu pago - Kerop ${eventName}`,
-          getRegistrationEmailHtml(firstName, eventName, eventDateStr, 'mercadopago', event.price, initPoint)
-        ) : Promise.resolve(),
-        phone ? sendWhatsApp(
-          phone,
-          getRegistrationWhatsAppText(firstName, eventName, eventDateStr, 'mercadopago', event.price, initPoint)
-        ) : Promise.resolve(),
-      ]);
+      // Preferencia creada con éxito — ahora sí notificar admin y usuario
+      try {
+        await Promise.all([
+          notifyAdmin('mercadopago'),
+          email ? sendEmail(
+            email,
+            `Completa tu pago - Kerop ${eventName}`,
+            getRegistrationEmailHtml(firstName, eventName, eventDateStr, 'mercadopago', event.price, initPoint)
+          ) : Promise.resolve(),
+          phone ? sendWhatsApp(
+            phone,
+            getRegistrationWhatsAppText(firstName, eventName, eventDateStr, 'mercadopago', event.price, initPoint)
+          ) : Promise.resolve(),
+        ]);
+      } catch (notifErr) {
+        console.error('Error en notificaciones (MP):', notifErr);
+      }
 
       return NextResponse.json({
         registration,

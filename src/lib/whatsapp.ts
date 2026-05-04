@@ -25,39 +25,24 @@ export const sendWhatsApp = async (to: string, message: string) => {
   const baseUrl = `https://api.green-api.com/waInstance${idInstance}`;
 
   try {
-    // Paso 1: Verificar que el número existe en WhatsApp y obtener su chatId real
-    // Esto resuelve el problema de Argentina donde el 9 puede variar
-    let chatId = `${cleanPhone}@c.us`;
-
-    try {
-      const checkRes = await fetch(`${baseUrl}/checkWhatsapp/${apiToken}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber: cleanPhone }),
-      });
-
-      if (checkRes.ok) {
-        const checkData = await checkRes.json();
-        if (checkData.existsWhatsapp && checkData.chatId) {
-          chatId = checkData.chatId;
-          console.log(`✅ Número verificado en WA. chatId real: ${chatId}`);
-        } else {
-          console.warn(`⚠️ El número ${cleanPhone} no está registrado en WhatsApp. Se intenta enviar igual.`);
-        }
-      }
-    } catch (checkErr) {
-      // Si falla la verificación, intentamos enviar igual con el chatId estimado
-      console.warn('⚠️ No se pudo verificar el número en WA, intentando enviar igual:', checkErr);
-    }
-
+    // Saltamos checkWhatsapp: la API de Green tarda hasta 10s y bloquea el flujo.
+    // sendMessage falla limpio si el número no existe, así que basta con eso.
+    const chatId = `${cleanPhone}@c.us`;
     console.log(`📱 Enviando WhatsApp a chatId: ${chatId}`);
 
-    // Paso 2: Enviar el mensaje
-    const res = await fetch(`${baseUrl}/sendMessage/${apiToken}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chatId, message }),
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    let res: Response;
+    try {
+      res = await fetch(`${baseUrl}/sendMessage/${apiToken}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatId, message }),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
 
     const responseData = await res.json();
 
@@ -86,11 +71,11 @@ export const getRegistrationWhatsAppText = (
   text += `Monto a abonar: *$${price} UYU*\n\n`;
   
   if (isMP) {
-    text += `Elegiste pagar con MercadoPago. Si no pudiste completar el pago, podés hacerlo ingresando a este link:\n${paymentLink}\n\n`;
+    text += `Elegiste pagar con *MercadoPago* 💳\n\nSi no completaste el pago o se cerró la pantalla, podés hacerlo ahora con este link:\n👉 ${paymentLink}\n\nCuando se confirme el pago tu inscripción queda asegurada. ¡Ya casi!\n\n`;
   } else {
-    text += `Elegiste transferencia. Por favor, envianos el comprobante para asegurar tu lugar:\n\n*Mariana Ganimian*\nSantander: 1201993896 (Suc. 19)\nOtros a Santander: 0019001201993896\n\n*Prex Kerop*\nCuenta: 290962\n\n`;
+    text += `Elegiste *Transferencia Bancaria* 🏦\n\nDatos para transferir *$${price} UYU*:\n\n📌 *Mariana Ganimian*\n• Santander: Cuenta 1201993896 / Suc. 19-Carrasco\n• Otros bancos a Santander: 0019001201993896 (UYU)\n\n📌 *Prex Kerop*\nMariana Ganimian (CI 45342774)\nCuenta: 290962\n\n✅ Una vez realizada la transferencia, envianos el comprobante por DM a nuestro Instagram *@kerop.uy* para confirmar tu lugar.\n\n`;
   }
-  
+
   text += `¡Nos vemos en Kerop! ☕🖤`;
   return text;
 };
@@ -106,19 +91,16 @@ export const getAdminWhatsAppText = (
   isPaid: boolean = false,
   instagram: string | null = null
 ) => {
-  let text = `📢 *Nuevo movimiento en Kerop*\n\n`;
-
-  if (isPaid) {
-    text += `✅ *${firstName} ${lastName}* acaba de realizar un pago exitoso por MercadoPago.\n\n`;
-  } else {
-    text += `⏳ *${firstName} ${lastName}* se registró y está pendiente de pago.\n\n`;
-  }
+  let text = isPaid
+    ? `💰 *Pago confirmado en Kerop*\n\n✅ *${firstName} ${lastName}* pagó su entrada por MercadoPago.\n\n`
+    : `📝 *Nuevo registro en Kerop*\n\n⏳ *${firstName} ${lastName}* se inscribió — pago pendiente.\n\n`;
 
   text += `*Evento:* ${eventName} (${eventDate})\n`;
-  text += `*Instagram:* ${instagram || 'No provisto'}\n`;
-  text += `*Celular:* ${phone || 'No provisto'}\n`;
-  text += `*Email:* ${email || 'No provisto'}\n`;
-  text += `*Método:* ${paymentMethod}`;
+  text += `*Instagram:* ${instagram || '—'}\n`;
+  text += `*Celular:* ${phone || '—'}\n`;
+  text += `*Email:* ${email || '—'}\n`;
+  text += `*Método:* ${paymentMethod}\n`;
+  text += isPaid ? `*Estado:* ✅ PAGADO` : `*Estado:* ⏳ Pendiente`;
 
   return text;
 };

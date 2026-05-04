@@ -27,13 +27,47 @@ export async function GET(request: Request) {
       const registrationId = paymentInfo.external_reference;
 
       if (registrationId) {
-        await prisma.registration.update({
+        const existing = await prisma.registration.findUnique({
           where: { id: registrationId as string },
-          data: {
-            paid: true,
-            paymentId: paymentInfo.id!.toString(),
-          },
         });
+
+        if (existing && !existing.paid) {
+          await prisma.registration.update({
+            where: { id: registrationId as string },
+            data: { paid: true, paymentId: paymentInfo.id!.toString() },
+          });
+
+          // Notificar al admin (el webhook puede no haber llegado aún o llegar después)
+          try {
+            const eventInfo = existing.eventId
+              ? await prisma.event.findUnique({ where: { id: existing.eventId } })
+              : null;
+            if (eventInfo) {
+              const eventDateStr = new Date(eventInfo.date).toLocaleDateString('es-UY');
+              const { sendEmail, getAdminNotificationHtml } = await import('@/lib/email');
+              const { sendWhatsApp, getAdminWhatsAppText } = await import('@/lib/whatsapp');
+              const { sendPushNotification } = await import('@/lib/push');
+              await Promise.all([
+                sendPushNotification(
+                  'Pago Confirmado (MP) 💰',
+                  `${existing.firstName} ${existing.lastName} pagó su entrada para ${eventInfo.type}.`
+                ),
+                sendEmail(
+                  'smoyano1988@gmail.com',
+                  `Pago Confirmado - ${eventInfo.type}`,
+                  getAdminNotificationHtml(existing.firstName, existing.lastName, eventInfo.type, eventDateStr, existing.email, existing.phone, 'MercadoPago', true, existing.instagram)
+                ),
+                sendWhatsApp(
+                  '+59897183275',
+                  getAdminWhatsAppText(existing.firstName, existing.lastName, eventInfo.type, eventDateStr, existing.email, existing.phone, 'MercadoPago', true, existing.instagram)
+                ),
+              ]);
+            }
+          } catch (notifErr) {
+            console.error('Error enviando notificaciones en verify:', notifErr);
+          }
+        }
+
         return NextResponse.json({ success: true, status: "approved" });
       }
     }

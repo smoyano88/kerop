@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-// GET — Obtener selecciones de un evento
+// GET — Obtener selecciones de un evento (vivo o archivado)
 export async function GET(req: NextRequest) {
   const eventId = req.nextUrl.searchParams.get('eventId');
   if (!eventId) return NextResponse.json({ error: 'Falta eventId' }, { status: 400 });
 
-  const matchData = await prisma.matchData.findUnique({ where: { eventId } });
+  // Probamos primero como evento vivo, después como archivado
+  const matchData =
+    (await prisma.matchData.findUnique({ where: { eventId } })) ??
+    (await prisma.matchData.findFirst({ where: { archivedEventId: eventId } }));
   return NextResponse.json({ selections: matchData?.selections || {} });
 }
 

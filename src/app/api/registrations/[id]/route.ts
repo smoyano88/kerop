@@ -52,6 +52,7 @@ export async function PATCH(
 
     // Notificaciones de Pago Confirmado Manualmente
     try {
+      if (!updated.event) throw new Error('Evento no encontrado');
       const eventDateStr = new Date(updated.event.date).toLocaleDateString('es-UY');
       const { sendEmail, getAdminNotificationHtml } = await import('@/lib/email');
       const { sendWhatsApp, getAdminWhatsAppText } = await import('@/lib/whatsapp');

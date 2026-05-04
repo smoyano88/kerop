@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import EventListClient from './EventListClient';
 import Image from 'next/image';
+import { isReservationActive } from '@/lib/reservations';
 
 export const dynamic = 'force-dynamic';
 export const metadata = {
@@ -9,14 +10,19 @@ export const metadata = {
 };
 
 export default async function EventosPage() {
-  const events = await prisma.event.findMany({
+  const eventsRaw = await prisma.event.findMany({
     where: { date: { gte: new Date() } },
     orderBy: { date: 'asc' },
     include: {
-      // Solo registraciones PAGADAS para el conteo de cupos
-      registrations: { where: { paid: true } }
+      // Trae todas y filtra en memoria: pagas + pendientes vigentes
+      registrations: true,
     }
   });
+
+  const events = eventsRaw.map(ev => ({
+    ...ev,
+    registrations: ev.registrations.filter(r => isReservationActive(r)),
+  }));
 
   return (
     <main style={{ paddingBottom: '6rem' }}>

@@ -3,11 +3,16 @@ import { useEffect } from 'react';
 
 export default function PrintActions() {
   useEffect(() => {
-    // Auto-imprimir al cargar
-    const timeout = setTimeout(() => {
-      window.print();
-    }, 800);
-    return () => clearTimeout(timeout);
+    // Esperar fuentes + dos frames de paint antes de abrir el diálogo.
+    // document.fonts.ready garantiza las fuentes; el doble rAF garantiza que
+    // el browser ya pintó el contenido en pantalla (evita página en blanco).
+    document.fonts.ready.then(() => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          window.print();
+        });
+      });
+    });
   }, []);
 
   return (

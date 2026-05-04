@@ -1,17 +1,51 @@
 import { NextResponse } from 'next/server';
+import { createHmac } from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { MercadoPagoPayment, mercadoPagoClient } from '@/lib/mercadopago';
+
+function verifyMpSignature(request: Request, rawBody: string): boolean {
+  const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
+  // Si no está configurado el secret, en sandbox lo permitimos pero logueamos advertencia
+  if (!secret) {
+    console.warn('⚠️  MERCADOPAGO_WEBHOOK_SECRET no configurado — saltando validación de firma');
+    return true;
+  }
+
+  const xSignature = request.headers.get('x-signature');
+  const xRequestId = request.headers.get('x-request-id');
+  const { searchParams } = new URL(request.url);
+  const dataId = searchParams.get('data.id') || searchParams.get('id');
+
+  if (!xSignature) return false;
+
+  // Extraer ts y v1 del header x-signature
+  const parts = Object.fromEntries(xSignature.split(',').map(p => p.trim().split('=')));
+  const ts = parts['ts'];
+  const v1 = parts['v1'];
+  if (!ts || !v1) return false;
+
+  const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
+  const hash = createHmac('sha256', secret).update(manifest).digest('hex');
+  return hash === v1;
+}
 
 // MercadoPago llama a este endpoint cuando se confirma un pago
 // Funciona incluso si el usuario no vuelve a la app manualmente
 export async function POST(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    
+
+    // Leer body como texto para validar firma antes de parsear
+    const rawBody = await request.text();
+    if (!verifyMpSignature(request, rawBody)) {
+      console.warn('🚫 Webhook MP: firma inválida — request rechazado');
+      return NextResponse.json({ error: 'Firma inválida' }, { status: 401 });
+    }
+
     // MP puede mandar el tipo por query param o por body
     let body: any = {};
     try {
-      body = await request.json();
+      body = JSON.parse(rawBody);
     } catch {
       // body puede estar vacío en algunas notificaciones
     }
@@ -52,7 +86,7 @@ export async function POST(request: Request) {
 
           // Notificar confirmación de pago
           try {
-            const eventInfo = await prisma.event.findUnique({ where: { id: existing.eventId } });
+            const eventInfo = existing.eventId ? await prisma.event.findUnique({ where: { id: existing.eventId } }) : null;
             if (eventInfo) {
               const eventDateStr = new Date(eventInfo.date).toLocaleDateString('es-UY');
               const { sendEmail, getAdminNotificationHtml } = await import('@/lib/email');
