@@ -82,14 +82,14 @@ export default function AdminClient({ events }: { events: Event[] }) {
   const DIAS = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] as const;
   type Dia = typeof DIAS[number];
   const DIA_LABELS: Record<Dia, string> = { lunes: 'Lunes', martes: 'Martes', miercoles: 'Miércoles', jueves: 'Jueves', viernes: 'Viernes', sabado: 'Sábado', domingo: 'Domingo' };
-  const [horarios, setHorarios] = useState<Record<Dia, { open: boolean; hours: string }>>({
-    lunes:    { open: true,  hours: '' },
-    martes:   { open: true,  hours: '' },
-    miercoles:{ open: true,  hours: '' },
-    jueves:   { open: true,  hours: '' },
-    viernes:  { open: true,  hours: '' },
-    sabado:   { open: true,  hours: '' },
-    domingo:  { open: true,  hours: '' },
+  const [horarios, setHorarios] = useState<Record<Dia, { open: boolean; from: string; to: string }>>({
+    lunes:    { open: true,  from: '', to: '' },
+    martes:   { open: false, from: '', to: '' },
+    miercoles:{ open: true,  from: '', to: '' },
+    jueves:   { open: true,  from: '', to: '' },
+    viernes:  { open: true,  from: '', to: '' },
+    sabado:   { open: true,  from: '', to: '' },
+    domingo:  { open: true,  from: '', to: '' },
   });
   const [horariosLoading, setHorariosLoading] = useState(false);
   const [menuItems, setMenuItems] = useState<MenuItemAdmin[]>([]);
@@ -107,8 +107,14 @@ export default function AdminClient({ events }: { events: Event[] }) {
       ]);
       const newHorarios = { ...horarios };
       for (const dia of DIAS) {
-        const raw = settingsRes[`horario_${dia}`] ?? '';
-        newHorarios[dia] = raw === 'cerrado' ? { open: false, hours: '' } : { open: true, hours: raw };
+        const raw: string = settingsRes[`horario_${dia}`] ?? '';
+        if (!raw || raw === 'cerrado') {
+          newHorarios[dia] = { open: false, from: '', to: '' };
+        } else {
+          // formato esperado: "9:00 – 22:00" o "9:00 - 22:00"
+          const parts = raw.split(/\s*[–-]\s*/);
+          newHorarios[dia] = { open: true, from: parts[0]?.trim() ?? '', to: parts[1]?.trim() ?? '' };
+        }
       }
       setHorarios(newHorarios);
       setMenuItems(menuRes);
@@ -126,7 +132,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           password: currentAdminPassword,
-          ...Object.fromEntries(DIAS.map(dia => [`horario_${dia}`, horarios[dia].open ? horarios[dia].hours : 'cerrado'])),
+          ...Object.fromEntries(DIAS.map(dia => [`horario_${dia}`, horarios[dia].open ? `${horarios[dia].from} – ${horarios[dia].to}` : 'cerrado'])),
         }),
       });
       setSuccess('Horarios actualizados');
@@ -1859,13 +1865,23 @@ export default function AdminClient({ events }: { events: Event[] }) {
                       {horarios[dia].open ? 'ABIERTO' : 'CERRADO'}
                     </button>
                     {horarios[dia].open && (
-                      <input
-                        className="input-field"
-                        style={{ flex: 1, margin: 0 }}
-                        value={horarios[dia].hours}
-                        onChange={e => setHorarios(h => ({ ...h, [dia]: { ...h[dia], hours: e.target.value } }))}
-                        placeholder="Ej: 9:00 – 22:00"
-                      />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
+                        <input
+                          type="time"
+                          className="input-field"
+                          style={{ margin: 0, flex: 1, minWidth: 0 }}
+                          value={horarios[dia].from}
+                          onChange={e => setHorarios(h => ({ ...h, [dia]: { ...h[dia], from: e.target.value } }))}
+                        />
+                        <span style={{ color: 'var(--text-muted)', fontWeight: 700, flexShrink: 0 }}>–</span>
+                        <input
+                          type="time"
+                          className="input-field"
+                          style={{ margin: 0, flex: 1, minWidth: 0 }}
+                          value={horarios[dia].to}
+                          onChange={e => setHorarios(h => ({ ...h, [dia]: { ...h[dia], to: e.target.value } }))}
+                        />
+                      </div>
                     )}
                     {!horarios[dia].open && <span style={{ flex: 1, fontSize: '0.85rem', color: 'rgba(255,255,255,0.2)' }}>—</span>}
                   </div>
