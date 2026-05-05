@@ -93,6 +93,14 @@ export default function AdminClient({ events }: { events: Event[] }) {
   const [participantsSearch, setParticipantsSearch] = useState('');
   const [expandedParticipant, setExpandedParticipant] = useState<string | null>(null);
 
+  // Add-participant modal state
+  const [addParticipantEventId, setAddParticipantEventId] = useState<string | null>(null);
+  const [addPartForm, setAddPartForm] = useState({
+    firstName: '', lastName: '', gender: 'Hombre' as 'Hombre' | 'Mujer',
+    instagram: '', phone: '', email: '', selectedDrink: '', markAsPaid: true,
+  });
+  const [addPartLoading, setAddPartLoading] = useState(false);
+
   // Match State
   const [matchEventId, setMatchEventId] = useState<string | null>(null);
   const [matchSelections, setMatchSelections] = useState<Record<string, string[]>>({});
@@ -305,6 +313,40 @@ export default function AdminClient({ events }: { events: Event[] }) {
       await reloadEvents();
     } catch (err: any) {
       alert(err.message);
+    }
+  };
+
+  const handleAddParticipant = async () => {
+    if (!addParticipantEventId) return;
+    if (!addPartForm.firstName.trim() || !addPartForm.lastName.trim()) {
+      setError('Nombre y apellido son obligatorios.');
+      return;
+    }
+    if (!addPartForm.phone.trim() && !addPartForm.email.trim() && !addPartForm.instagram.trim()) {
+      setError('Se necesita al menos un dato de contacto (teléfono, email o Instagram).');
+      return;
+    }
+    setAddPartLoading(true);
+    try {
+      const res = await fetch('/api/registrations/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...addPartForm,
+          eventId: addParticipantEventId,
+          password: currentAdminPassword,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error agregando participante');
+      showSuccess(`✅ ${addPartForm.firstName} ${addPartForm.lastName} agregado/a al evento.`);
+      setAddParticipantEventId(null);
+      setAddPartForm({ firstName: '', lastName: '', gender: 'Hombre', instagram: '', phone: '', email: '', selectedDrink: '', markAsPaid: true });
+      await reloadEvents();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setAddPartLoading(false);
     }
   };
 
@@ -744,14 +786,21 @@ export default function AdminClient({ events }: { events: Event[] }) {
                               {isExpanded ? '▲ Ocultar inscriptos' : `▼ Ver ${total} inscripto${total !== 1 ? 's' : ''}`}
                             </button>
                             
-                            <a 
-                              href={`/admin/planilla/${ev.id}`} 
-                              target="_blank" 
+                            <a
+                              href={`/admin/planilla/${ev.id}`}
+                              target="_blank"
                               rel="noreferrer"
                               style={{ background: 'rgba(234, 179, 8, 0.15)', border: '1px solid rgba(234, 179, 8, 0.3)', color: '#fde047', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', textDecoration: 'none', transition: 'all 0.3s', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
                             >
                               <span>🖨️</span> Descargar Planilla
                             </a>
+
+                            <button
+                              onClick={() => setAddParticipantEventId(ev.id)}
+                              style={{ background: 'rgba(57,255,20,0.12)', border: '1px solid rgba(57,255,20,0.35)', color: 'var(--neon-green)', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                            >
+                              <span>➕</span> Agregar Participante
+                            </button>
                           </div>
 
                           {isExpanded && (
@@ -1089,7 +1138,16 @@ export default function AdminClient({ events }: { events: Event[] }) {
               const updated = current.includes(toId)
                 ? current.filter(id => id !== toId)
                 : [...current, toId];
-              return { ...prev, [fromId]: updated };
+              const next = { ...prev, [fromId]: updated };
+              // Autosave: persiste cada cambio sin necesidad de un botón Guardar
+              if (matchEventId) {
+                fetch('/api/matches', {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ eventId: matchEventId, selections: next, password: currentAdminPassword }),
+                }).catch(() => { /* fallo silencioso — handleMatchear vuelve a guardar */ });
+              }
+              return next;
             });
           };
 
@@ -1103,20 +1161,6 @@ export default function AdminClient({ events }: { events: Event[] }) {
             } catch {
               setMatchSelections({});
             }
-          };
-
-          const handleSaveSelections = async () => {
-            if (!matchEventId) return;
-            setMatchLoading(true);
-            try {
-              await fetch('/api/matches', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ eventId: matchEventId, selections: matchSelections, password: currentAdminPassword }),
-              });
-              showSuccess('✅ Selecciones guardadas');
-            } catch { setError('Error guardando'); }
-            finally { setMatchLoading(false); }
           };
 
           const handleToggleAttended = async (regId: string) => {
@@ -1302,15 +1346,10 @@ export default function AdminClient({ events }: { events: Event[] }) {
                       <h4 style={{ fontSize: '1.2rem', color: 'white' }}>{selectedEvent.type}</h4>
                       <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{format(new Date(selectedEvent.date), "EEEE d 'de' MMMM yyyy", { locale: es })} • {paidRegs.length} participantes pagados</p>
                     </div>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button onClick={handleSaveSelections} disabled={matchLoading} className="btn btn-outline" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
-                        💾 Guardar
-                      </button>
-                    </div>
                   </div>
 
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '1.5rem', background: 'rgba(255,255,255,0.03)', padding: '0.75rem', borderRadius: '8px' }}>
-                    📋 Leé la planilla de cada participante y tildá a quién le puso match. Tocá el <span style={{ color: 'var(--neon-green)' }}>✓</span> para marcar a alguien que no asistió (queda gris).
+                    📋 Leé la planilla de cada participante y tildá a quién le puso match. Tocá el <span style={{ color: 'var(--neon-green)' }}>✓</span> para marcar a alguien que no asistió (queda gris). <span style={{ color: 'var(--neon-green)' }}>💾 Los cambios se guardan automáticamente.</span>
                   </p>
 
                   {isHomoEvent && allParticipants ? (
@@ -1716,6 +1755,69 @@ export default function AdminClient({ events }: { events: Event[] }) {
           );
         })()}
       </div>
+
+      {/* ── Modal: Agregar participante manualmente ── */}
+      {addParticipantEventId && (() => {
+        const ev = eventList.find(e => e.id === addParticipantEventId);
+        if (!ev) return null;
+        const evDrinks = (ev.drinksAvailable || '').split(',').map(d => d.trim()).filter(Boolean);
+        return (
+          <div
+            onClick={() => setAddParticipantEventId(null)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: '1rem' }}
+          >
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{ background: '#0d0d0d', border: '1px solid rgba(57,255,20,0.3)', borderRadius: '12px', padding: '2rem', maxWidth: '520px', width: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 0 30px rgba(57,255,20,0.15)' }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.3rem', color: 'var(--neon-green)', marginBottom: '0.3rem' }}>➕ Agregar Participante</h3>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{ev.type} — {format(new Date(ev.date), "dd 'de' MMMM, HH:mm 'hs'", { locale: es })}</p>
+                </div>
+                <button onClick={() => setAddParticipantEventId(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '1.5rem', cursor: 'pointer', lineHeight: 1 }}>×</button>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                <input className="input-field" placeholder="Nombre" value={addPartForm.firstName} onChange={e => setAddPartForm(f => ({ ...f, firstName: e.target.value }))} />
+                <input className="input-field" placeholder="Apellido" value={addPartForm.lastName} onChange={e => setAddPartForm(f => ({ ...f, lastName: e.target.value }))} />
+              </div>
+
+              <select className="input-field" value={addPartForm.gender} onChange={e => setAddPartForm(f => ({ ...f, gender: e.target.value as 'Hombre' | 'Mujer' }))} style={{ marginBottom: '0.75rem' }}>
+                <option value="Hombre">Hombre</option>
+                <option value="Mujer">Mujer</option>
+              </select>
+
+              <input className="input-field" placeholder="Instagram (@usuario)" value={addPartForm.instagram} onChange={e => setAddPartForm(f => ({ ...f, instagram: e.target.value }))} style={{ marginBottom: '0.75rem' }} />
+              <input className="input-field" placeholder="Teléfono (+598...)" value={addPartForm.phone} onChange={e => setAddPartForm(f => ({ ...f, phone: e.target.value }))} style={{ marginBottom: '0.75rem' }} />
+              <input className="input-field" placeholder="Email (opcional)" value={addPartForm.email} onChange={e => setAddPartForm(f => ({ ...f, email: e.target.value }))} style={{ marginBottom: '0.75rem' }} />
+
+              {evDrinks.length > 0 && (
+                <select className="input-field" value={addPartForm.selectedDrink} onChange={e => setAddPartForm(f => ({ ...f, selectedDrink: e.target.value }))} style={{ marginBottom: '0.75rem' }}>
+                  <option value="">Sin trago / elegir luego</option>
+                  {evDrinks.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              )}
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.25rem', cursor: 'pointer' }}>
+                <input type="checkbox" checked={addPartForm.markAsPaid} onChange={e => setAddPartForm(f => ({ ...f, markAsPaid: e.target.checked }))} />
+                Marcar como pagado (invitación de la casa)
+              </label>
+
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.03)', padding: '0.6rem', borderRadius: '6px', marginBottom: '1.25rem' }}>
+                ℹ️ Aplica el control de cupos del evento. No envía notificaciones automáticas al participante.
+              </p>
+
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+                <button onClick={() => setAddParticipantEventId(null)} className="btn btn-outline" style={{ padding: '0.6rem 1.2rem' }}>Cancelar</button>
+                <button onClick={handleAddParticipant} disabled={addPartLoading} className="btn btn-primary" style={{ padding: '0.6rem 1.2rem' }}>
+                  {addPartLoading ? 'Agregando...' : '➕ Agregar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

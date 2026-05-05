@@ -61,6 +61,7 @@ export default function Home() {
             </p>
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
               <a href="#menu" className="btn btn-primary">Ver Menú Completo</a>
+              <a href="#quienes-somos" className="btn btn-outline">Quiénes Somos</a>
               <Link href="/tattoo" className="btn btn-outline">Tattoo Studio</Link>
             </div>
           </div>
@@ -79,6 +80,35 @@ export default function Home() {
             <Link href="/eventos" className="btn btn-primary btn-pulse" style={{ width: '100%', fontSize: '0.95rem', padding: '0.85rem' }}>
               Speed Dating 🔥
             </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── QUIÉNES SOMOS ─── */}
+      <section id="quienes-somos" style={{ padding: '6rem 0', position: 'relative', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+        <div className="floating-blob" style={{ position: 'absolute', top: '20%', right: '-10%', width: '400px', height: '400px', background: 'var(--neon-pink)', filter: 'blur(150px)', opacity: 0.06, zIndex: 0 }} />
+        <div className="container" style={{ position: 'relative', zIndex: 1 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '4rem', alignItems: 'center' }}>
+            <div className="reveal">
+              <p className="text-pink" style={{ textTransform: 'uppercase', letterSpacing: '4px', fontSize: '0.85rem', marginBottom: '0.75rem' }}>Quiénes Somos</p>
+              <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', marginBottom: '1.5rem' }}>El refugio de Mariana ☕🖤</h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', lineHeight: 1.9, marginBottom: '1.25rem' }}>
+                Kerop nació en el corazón de Ciudad Vieja como un espacio donde el café de especialidad, la pastelería vegana y el arte del tatuaje conviven sin pedirse permiso.
+              </p>
+              <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', lineHeight: 1.9, marginBottom: '1.25rem' }}>
+                Cada alfajor que servimos está hecho a mano el mismo día. Cada tatuaje que sale de acá lleva la firma de artistas residentes que eligieron este lugar como su estudio. Cada speed dating es una excusa para que la ciudad se encuentre.
+              </p>
+              <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', lineHeight: 1.9 }}>
+                Somos un café, somos un estudio, somos una casa. Te esperamos.
+              </p>
+              <p style={{ color: 'var(--neon-pink)', fontSize: '0.85rem', marginTop: '2rem', fontStyle: 'italic', opacity: 0.6 }}>
+                * Texto provisorio — Mariana lo va a actualizar.
+              </p>
+            </div>
+            <div className="reveal reveal-delay-2" style={{ position: 'relative', height: '420px', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid rgba(255,16,122,0.2)' }}>
+              <Image src="/img/kerop-mural.jpg" alt="Kerop por dentro" fill style={{ objectFit: 'cover' }} />
+              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.5) 100%)' }} />
+            </div>
           </div>
         </div>
       </section>

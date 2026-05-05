@@ -161,12 +161,26 @@ a {
   font-family: var(--font-inter), sans-serif;
   font-size: 1rem;
   transition: var(--transition);
+  color-scheme: dark;
 }
 
 .input-field:focus {
   outline: none;
   border-color: var(--neon-pink);
   box-shadow: 0 0 10px rgba(255, 16, 122, 0.3);
+}
+
+/* Hacer visible el ícono del calendario en inputs date/time sobre fondo oscuro */
+.input-field::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.5);
+  opacity: 0.85;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.input-field::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+  filter: invert(1) brightness(2) sepia(1) hue-rotate(290deg) saturate(5);
 }
 
 /* Header/Nav */

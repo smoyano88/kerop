@@ -54,8 +54,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    // Combine date and time
-    const eventDate = new Date(`${date}T${time}`);
+    // Combine date and time. Forzamos offset Uruguay (-03:00) para evitar
+    // que el servidor (en UTC) interprete 21:00 como 21:00 UTC y termine mostrando 18:00 local.
+    const eventDate = new Date(`${date}T${time}:00-03:00`);
 
     const event = await prisma.event.create({
       data: {
