@@ -4,27 +4,11 @@ import { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-/* ── Tragos reales del menú de Kerop ── */
-const DRINKS_SIN_ALCOHOL = [
-  'Jugo de naranja exprimido',
-  'Limonada con menta y jengibre',
-  'Monster (Mango Loco)',
-  'Coca Cola 600ml',
-  'Coca Cola Sin azúcar 600ml',
-];
-
-const DRINKS_ALCOHOLICAS = [
-  'Cerveza lata 473ml',
-  'Cerveza Kotayk o Erebuni 500ml',
-  'Vermouth rosso de Rooster',
-  'Campari con naranja',
-  'Vodka con naranja',
-  'Ron con Coca',
-  'Fernet con Coca',
-  'Sidra Matriarca 330ml',
-  'Medio y medio en lata 473ml',
-  'GinTonic clásico',
-];
+interface Drink {
+  id: string;
+  name: string;
+  isAlcoholic: boolean;
+}
 
 interface Registration {
   id: string;
@@ -83,7 +67,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
   const [eventList, setEventList] = useState<Event[]>(events);
   
   // Navigation State
-  const [activeTab, setActiveTab] = useState<'events' | 'create' | 'matches' | 'participants' | 'password'>('events');
+  const [activeTab, setActiveTab] = useState<'events' | 'create' | 'matches' | 'participants' | 'drinks' | 'password'>('events');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Participants State
@@ -186,6 +170,19 @@ export default function AdminClient({ events }: { events: Event[] }) {
       loadParticipants();
     }
   }, [activeTab, isAuthenticated]);
+
+  // Cargar catálogo de tragos al autenticarse y al entrar al tab
+  useEffect(() => {
+    if (isAuthenticated && drinkCatalog.length === 0) {
+      loadDrinkCatalog();
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (activeTab === 'drinks' && isAuthenticated) {
+      loadDrinkCatalog();
+    }
+  }, [activeTab]);
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -198,10 +195,14 @@ export default function AdminClient({ events }: { events: Event[] }) {
   /* ── Create Event Form State ── */
   const [createEventType, setCreateEventType] = useState('');
 
-  /* ── Drink Tag State ── */
-  const [selectedDrinks, setSelectedDrinks] = useState<string[]>([
-    ...DRINKS_ALCOHOLICAS.slice(0, 5),
-  ]);
+  /* ── Drink catalog from DB ── */
+  const [drinkCatalog, setDrinkCatalog] = useState<Drink[]>([]);
+  const [newDrinkName, setNewDrinkName] = useState('');
+  const [newDrinkAlcoholic, setNewDrinkAlcoholic] = useState(false);
+  const [drinksLoading, setDrinksLoading] = useState(false);
+
+  /* ── Drink Tag State (for event creation) ── */
+  const [selectedDrinks, setSelectedDrinks] = useState<string[]>([]);
   const [customDrink, setCustomDrink] = useState('');
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -377,6 +378,48 @@ export default function AdminClient({ events }: { events: Event[] }) {
       setSelectedDrinks(prev => [...prev, trimmed]);
       setCustomDrink('');
     }
+  };
+
+  const loadDrinkCatalog = async () => {
+    setDrinksLoading(true);
+    try {
+      const data = await fetch('/api/drinks').then(r => r.json());
+      setDrinkCatalog(data);
+    } catch {}
+    finally { setDrinksLoading(false); }
+  };
+
+  const handleAddDrink = async () => {
+    const trimmed = newDrinkName.trim();
+    if (!trimmed) return;
+    setDrinksLoading(true);
+    try {
+      const res = await fetch('/api/drinks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimmed, isAlcoholic: newDrinkAlcoholic, password: currentAdminPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) { alert(data.error); return; }
+      setNewDrinkName('');
+      setNewDrinkAlcoholic(false);
+      await loadDrinkCatalog();
+    } catch {} finally { setDrinksLoading(false); }
+  };
+
+  const handleDeleteDrink = async (id: string, name: string) => {
+    if (!confirm(`¿Eliminar "${name}" del catálogo?`)) return;
+    setDrinksLoading(true);
+    try {
+      const res = await fetch('/api/drinks', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, password: currentAdminPassword }),
+      });
+      if (!res.ok) { const d = await res.json(); alert(d.error); return; }
+      setSelectedDrinks(prev => prev.filter(d => d !== name));
+      await loadDrinkCatalog();
+    } catch {} finally { setDrinksLoading(false); }
   };
 
   // Convierte una clave VAPID base64url a ArrayBuffer (requerido por todos los browsers)
@@ -595,6 +638,10 @@ export default function AdminClient({ events }: { events: Event[] }) {
             <span className="admin-nav-icon">👥</span>
             <span className="admin-nav-label">Participantes</span>
           </div>
+          <div className={`admin-nav-item ${activeTab === 'drinks' ? 'active' : ''}`} onClick={() => setActiveTab('drinks')}>
+            <span className="admin-nav-icon">🍹</span>
+            <span className="admin-nav-label">Tragos</span>
+          </div>
           <div className={`admin-nav-item ${activeTab === 'password' ? 'active' : ''}`} onClick={() => setActiveTab('password')}>
             <span className="admin-nav-icon">🔑</span>
             <span className="admin-nav-label">Cambiar Contraseña</span>
@@ -630,6 +677,10 @@ export default function AdminClient({ events }: { events: Event[] }) {
           <div className={`admin-mobile-nav-item ${activeTab === 'participants' ? 'active' : ''}`} onClick={() => { setActiveTab('participants'); loadParticipants(); }}>
             <span className="admin-nav-icon">👥</span>
             <span>Participantes</span>
+          </div>
+          <div className={`admin-mobile-nav-item ${activeTab === 'drinks' ? 'active' : ''}`} onClick={() => setActiveTab('drinks')}>
+            <span className="admin-nav-icon">🍹</span>
+            <span>Tragos</span>
           </div>
           <div className={`admin-mobile-nav-item ${activeTab === 'password' ? 'active' : ''}`} onClick={() => setActiveTab('password')}>
             <span className="admin-nav-icon">🔑</span>
@@ -747,7 +798,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginBottom: '1rem' }}>
                         <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginRight: '0.25rem', alignSelf: 'center' }}>🍹</span>
                         {drinksList.map((drink, idx) => {
-                          const isAlcoholic = DRINKS_ALCOHOLICAS.includes(drink.trim());
+                          const isAlcoholic = drinkCatalog.find(d => d.name === drink.trim())?.isAlcoholic ?? false;
                           return (
                             <span key={idx} style={{
                               background: isAlcoholic ? 'rgba(255,16,122,0.1)' : 'rgba(57,255,20,0.1)',
@@ -856,12 +907,12 @@ export default function AdminClient({ events }: { events: Event[] }) {
                                       <td style={{ padding: '0.6rem 0.8rem', color: 'var(--text-muted)' }}>{reg.gender === 'Hombre' ? '👨' : '👩'}</td>
                                       <td style={{ padding: '0.6rem 0.8rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }} title={reg.selectedDrink}>
                                         <span style={{ 
-                                          background: DRINKS_ALCOHOLICAS.includes(reg.selectedDrink) ? 'rgba(255,16,122,0.1)' : 'rgba(57,255,20,0.1)',
-                                          color: DRINKS_ALCOHOLICAS.includes(reg.selectedDrink) ? 'var(--neon-pink)' : 'var(--neon-green)',
+                                          background: drinkCatalog.find(d => d.name === reg.selectedDrink)?.isAlcoholic ? 'rgba(255,16,122,0.1)' : 'rgba(57,255,20,0.1)',
+                                          color: drinkCatalog.find(d => d.name === reg.selectedDrink)?.isAlcoholic ? 'var(--neon-pink)' : 'var(--neon-green)',
                                           padding: '0.2rem 0.6rem',
                                           borderRadius: '50px',
                                           fontSize: '0.75rem',
-                                          border: `1px solid ${DRINKS_ALCOHOLICAS.includes(reg.selectedDrink) ? 'rgba(255,16,122,0.2)' : 'rgba(57,255,20,0.2)'}`,
+                                          border: `1px solid ${drinkCatalog.find(d => d.name === reg.selectedDrink)?.isAlcoholic ? 'rgba(255,16,122,0.2)' : 'rgba(57,255,20,0.2)'}`,
                                         }}>
                                           {reg.selectedDrink}
                                         </span>
@@ -1005,81 +1056,67 @@ export default function AdminClient({ events }: { events: Event[] }) {
               {/* ── Drink Tag Selector ── */}
               <div>
                 <label className="input-label">Tragos del evento ({selectedDrinks.length} seleccionados)</label>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginBottom: '0.75rem' }}>
+                  Gestioná el catálogo completo en el tab <strong>Tragos</strong>. Aquí solo seleccionás cuáles ofrecer en este evento.
+                </p>
 
                 {/* Sin alcohol */}
-                <p style={{ color: 'var(--neon-cyan)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '2px', margin: '0.75rem 0 0.5rem', fontWeight: 600 }}>Sin Alcohol</p>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                  {DRINKS_SIN_ALCOHOL.map(drink => {
-                    const active = selectedDrinks.includes(drink);
-                    return (
-                      <button
-                        key={drink}
-                        type="button"
-                        onClick={() => toggleDrink(drink)}
-                        style={{
-                          padding: '0.35rem 0.7rem',
-                          borderRadius: '50px',
-                          border: `1px solid ${active ? 'rgba(57,255,20,0.5)' : 'rgba(255,255,255,0.1)'}`,
-                          background: active ? 'rgba(57,255,20,0.15)' : 'rgba(0,0,0,0.3)',
-                          color: active ? 'var(--neon-green)' : 'var(--text-muted)',
-                          cursor: 'pointer',
-                          fontSize: '0.78rem',
-                          transition: 'all 0.2s',
-                        }}
-                      >
-                        {active ? '✓ ' : ''}{drink}
-                      </button>
-                    );
-                  })}
-                </div>
+                {drinkCatalog.filter(d => !d.isAlcoholic).length > 0 && (
+                  <>
+                    <p style={{ color: 'var(--neon-cyan)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '2px', margin: '0.5rem 0 0.4rem', fontWeight: 600 }}>Sin Alcohol</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                      {drinkCatalog.filter(d => !d.isAlcoholic).map(drink => {
+                        const active = selectedDrinks.includes(drink.name);
+                        return (
+                          <button key={drink.id} type="button" onClick={() => toggleDrink(drink.name)} style={{
+                            padding: '0.35rem 0.7rem', borderRadius: '50px',
+                            border: `1px solid ${active ? 'rgba(57,255,20,0.5)' : 'rgba(255,255,255,0.1)'}`,
+                            background: active ? 'rgba(57,255,20,0.15)' : 'rgba(0,0,0,0.3)',
+                            color: active ? 'var(--neon-green)' : 'var(--text-muted)',
+                            cursor: 'pointer', fontSize: '0.78rem', transition: 'all 0.2s',
+                          }}>
+                            {active ? '✓ ' : ''}{drink.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
 
                 {/* Alcohólicas */}
-                <p style={{ color: 'var(--neon-pink)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '2px', margin: '0.75rem 0 0.5rem', fontWeight: 600 }}>Alcohólicas</p>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                  {DRINKS_ALCOHOLICAS.map(drink => {
-                    const active = selectedDrinks.includes(drink);
-                    return (
-                      <button
-                        key={drink}
-                        type="button"
-                        onClick={() => toggleDrink(drink)}
-                        style={{
-                          padding: '0.35rem 0.7rem',
-                          borderRadius: '50px',
-                          border: `1px solid ${active ? 'rgba(255,16,122,0.5)' : 'rgba(255,255,255,0.1)'}`,
-                          background: active ? 'rgba(255,16,122,0.15)' : 'rgba(0,0,0,0.3)',
-                          color: active ? 'var(--neon-pink)' : 'var(--text-muted)',
-                          cursor: 'pointer',
-                          fontSize: '0.78rem',
-                          transition: 'all 0.2s',
-                        }}
-                      >
-                        {active ? '✓ ' : ''}{drink}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Custom drinks added */}
-                {selectedDrinks.filter(d => !DRINKS_SIN_ALCOHOL.includes(d) && !DRINKS_ALCOHOLICAS.includes(d)).length > 0 && (
+                {drinkCatalog.filter(d => d.isAlcoholic).length > 0 && (
                   <>
-                    <p style={{ color: 'var(--chalk-yellow)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '2px', margin: '0.75rem 0 0.5rem', fontWeight: 600 }}>Personalizados</p>
+                    <p style={{ color: 'var(--neon-pink)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '2px', margin: '0.75rem 0 0.4rem', fontWeight: 600 }}>Alcohólicas</p>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                      {selectedDrinks.filter(d => !DRINKS_SIN_ALCOHOL.includes(d) && !DRINKS_ALCOHOLICAS.includes(d)).map(drink => (
-                        <button
-                          key={drink}
-                          type="button"
-                          onClick={() => toggleDrink(drink)}
-                          style={{
-                            padding: '0.35rem 0.7rem',
-                            borderRadius: '50px',
-                            border: '1px solid rgba(245,242,66,0.5)',
-                            background: 'rgba(245,242,66,0.15)',
-                            color: 'var(--chalk-yellow)',
-                            cursor: 'pointer',
-                            fontSize: '0.78rem',
-                          }}
-                        >
+                      {drinkCatalog.filter(d => d.isAlcoholic).map(drink => {
+                        const active = selectedDrinks.includes(drink.name);
+                        return (
+                          <button key={drink.id} type="button" onClick={() => toggleDrink(drink.name)} style={{
+                            padding: '0.35rem 0.7rem', borderRadius: '50px',
+                            border: `1px solid ${active ? 'rgba(255,16,122,0.5)' : 'rgba(255,255,255,0.1)'}`,
+                            background: active ? 'rgba(255,16,122,0.15)' : 'rgba(0,0,0,0.3)',
+                            color: active ? 'var(--neon-pink)' : 'var(--text-muted)',
+                            cursor: 'pointer', fontSize: '0.78rem', transition: 'all 0.2s',
+                          }}>
+                            {active ? '✓ ' : ''}{drink.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+
+                {/* Temporales (no están en catálogo) */}
+                {selectedDrinks.filter(d => !drinkCatalog.find(c => c.name === d)).length > 0 && (
+                  <>
+                    <p style={{ color: 'var(--chalk-yellow)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '2px', margin: '0.75rem 0 0.4rem', fontWeight: 600 }}>Solo este evento</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                      {selectedDrinks.filter(d => !drinkCatalog.find(c => c.name === d)).map(drink => (
+                        <button key={drink} type="button" onClick={() => toggleDrink(drink)} style={{
+                          padding: '0.35rem 0.7rem', borderRadius: '50px',
+                          border: '1px solid rgba(245,242,66,0.5)', background: 'rgba(245,242,66,0.15)',
+                          color: 'var(--chalk-yellow)', cursor: 'pointer', fontSize: '0.78rem',
+                        }}>
                           ✓ {drink} ✕
                         </button>
                       ))}
@@ -1087,7 +1124,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
                   </>
                 )}
 
-                {/* Add custom */}
+                {/* Add temporal */}
                 <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
                   <input
                     type="text"
@@ -1095,23 +1132,14 @@ export default function AdminClient({ events }: { events: Event[] }) {
                     onChange={(e) => setCustomDrink(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomDrink(); } }}
                     className="input-field"
-                    placeholder="Agregar trago personalizado..."
+                    placeholder="Trago solo para este evento..."
                     style={{ fontSize: '0.85rem', padding: '0.5rem 0.75rem' }}
                   />
-                  <button
-                    type="button"
-                    onClick={addCustomDrink}
-                    style={{
-                      background: 'rgba(255,255,255,0.1)',
-                      border: '1px solid rgba(255,255,255,0.15)',
-                      color: 'white',
-                      borderRadius: '8px',
-                      padding: '0.5rem 1rem',
-                      cursor: 'pointer',
-                      fontSize: '0.85rem',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
+                  <button type="button" onClick={addCustomDrink} style={{
+                    background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)',
+                    color: 'white', borderRadius: '8px', padding: '0.5rem 1rem',
+                    cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap',
+                  }}>
                     + Agregar
                   </button>
                 </div>
@@ -1505,6 +1533,84 @@ export default function AdminClient({ events }: { events: Event[] }) {
             </div>
           );
         })()}
+
+        {/* ─── TAB: TRAGOS ─── */}
+        {activeTab === 'drinks' && (
+          <div style={{ maxWidth: '700px', margin: '0 auto' }}>
+            <div className="glass-card" style={{ border: '1px solid rgba(255,16,122,0.2)', marginBottom: '1.5rem' }}>
+              <h3 className="text-pink" style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>Catálogo de Tragos</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+                Agregá o eliminá tragos del catálogo global. Al crear un evento podrás seleccionar cuáles ofrecer.
+              </p>
+
+              {/* Agregar nuevo */}
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+                <input
+                  type="text"
+                  className="input-field"
+                  value={newDrinkName}
+                  onChange={e => setNewDrinkName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddDrink(); } }}
+                  placeholder="Nombre del trago..."
+                  style={{ flex: 1, minWidth: '180px', fontSize: '0.9rem', padding: '0.6rem 0.9rem' }}
+                />
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-muted)', fontSize: '0.85rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  <input
+                    type="checkbox"
+                    checked={newDrinkAlcoholic}
+                    onChange={e => setNewDrinkAlcoholic(e.target.checked)}
+                    style={{ accentColor: 'var(--neon-pink)', width: '1rem', height: '1rem' }}
+                  />
+                  Alcohólico
+                </label>
+                <button
+                  type="button"
+                  onClick={handleAddDrink}
+                  disabled={drinksLoading || !newDrinkName.trim()}
+                  style={{ background: 'rgba(255,16,122,0.15)', border: '1px solid rgba(255,16,122,0.4)', color: 'var(--neon-pink)', borderRadius: '8px', padding: '0.6rem 1.1rem', cursor: 'pointer', fontSize: '0.9rem', whiteSpace: 'nowrap', opacity: !newDrinkName.trim() ? 0.5 : 1 }}
+                >
+                  + Agregar
+                </button>
+              </div>
+
+              {drinksLoading && <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Cargando...</p>}
+
+              {/* Sin alcohol */}
+              {drinkCatalog.filter(d => !d.isAlcoholic).length > 0 && (
+                <>
+                  <p style={{ color: 'var(--neon-cyan)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '0.5rem', fontWeight: 600 }}>Sin Alcohol</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '1rem' }}>
+                    {drinkCatalog.filter(d => !d.isAlcoholic).map(drink => (
+                      <div key={drink.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(57,255,20,0.05)', border: '1px solid rgba(57,255,20,0.15)', borderRadius: '8px', padding: '0.5rem 0.75rem' }}>
+                        <span style={{ color: 'var(--neon-green)', fontSize: '0.9rem' }}>{drink.name}</span>
+                        <button onClick={() => handleDeleteDrink(drink.id, drink.name)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', fontSize: '1rem', lineHeight: 1, padding: '0 0.25rem' }} title="Eliminar">✕</button>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* Alcohólicas */}
+              {drinkCatalog.filter(d => d.isAlcoholic).length > 0 && (
+                <>
+                  <p style={{ color: 'var(--neon-pink)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '0.5rem', fontWeight: 600 }}>Alcohólicas</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    {drinkCatalog.filter(d => d.isAlcoholic).map(drink => (
+                      <div key={drink.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,16,122,0.05)', border: '1px solid rgba(255,16,122,0.15)', borderRadius: '8px', padding: '0.5rem 0.75rem' }}>
+                        <span style={{ color: 'var(--neon-pink)', fontSize: '0.9rem' }}>{drink.name}</span>
+                        <button onClick={() => handleDeleteDrink(drink.id, drink.name)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', fontSize: '1rem', lineHeight: 1, padding: '0 0.25rem' }} title="Eliminar">✕</button>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {drinkCatalog.length === 0 && !drinksLoading && (
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', textAlign: 'center', padding: '1rem 0' }}>No hay tragos en el catálogo todavía.</p>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ─── TAB: CAMBIAR CONTRASEÑA ─── */}
         {activeTab === 'password' && (

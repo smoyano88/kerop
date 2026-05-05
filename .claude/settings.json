@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(lsof -ti:3000)",
+      "Bash(curl -s http://localhost:3000/api/events)",
+      "Bash(curl -s -X POST http://localhost:3000/api/registrations -H 'Content-Type: application/json' -d '{ *)",
+      "Bash(curl -s 'http://localhost:3000/api/registrations?eventId=adba7403-dd80-4afa-a887-18a3d3335d5f')",
+      "Bash(curl -s \"http://localhost:3000/api/registrations\")",
+      "Bash(curl -s 'http://localhost:3000/api/matches?eventId=adba7403-dd80-4afa-a887-18a3d3335d5f')",
+      "Bash(curl -s -X POST http://localhost:3000/api/matches -H 'Content-Type: application/json' -d '{\"eventId\": \"adba7403-dd80-4afa-a887-18a3d3335d5f\", \"selections\": {}}')",
+      "Bash(curl -s -w '\\\\nHTTP_STATUS:%{http_code}' 'http://localhost:3000/api/matches/repeated?eventId=adba7403-dd80-4afa-a887-18a3d3335d5f')",
+      "Bash(curl -s -X PUT http://localhost:3000/api/matches -H 'Content-Type: application/json' -d '{\"eventId\": \"adba7403-dd80-4afa-a887-18a3d3335d5f\", \"password\": \"__TRACKED_VAR__\", \"selections\": {}}')",
+      "Bash(kill %1)",
+      "Bash(curl -s -X POST http://localhost:3000/api/admin/password -H 'Content-Type: application/json' -d '{\"password\": \"Kerop2024\"}')",
+      "Bash(psql 'postgresql://neondb_owner:npg_dzN0fjMk3UqT@ep-morning-silence-anin7enu.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require' -c 'SELECT key, value FROM \"Setting\";')",
+      "Bash(curl -s -X POST http://localhost:3000/api/admin/password -H 'Content-Type: application/json' -d '{\"password\": \"vbOkOnly1\"}')",
+      "Bash(curl -s -X DELETE 'http://localhost:3000/api/registrations/5ec57f0c-8503-48c0-82f4-71cfefc478cf?pwd=vbOkOnly1' -w '\\\\nHTTP_STATUS:%{http_code}')"
+    ]
+  }
+}

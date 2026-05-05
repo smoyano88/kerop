@@ -52,6 +52,13 @@ model Setting {
   value String
 }
 
+model Drink {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  isAlcoholic Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
 model PushSubscription {
   id        String   @id @default(cuid())
   endpoint  String   @unique
