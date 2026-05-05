@@ -176,23 +176,26 @@ a {
   color-scheme: dark;
 }
 
-.input-field::-webkit-calendar-picker-indicator {
-  filter: invert(1) brightness(2);
-  opacity: 1;
+.input-field[type="date"]::-webkit-calendar-picker-indicator,
+.input-field[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(2) !important;
+  opacity: 1 !important;
   cursor: pointer;
   padding: 6px;
   margin-right: 2px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.15);
 }
 
-.input-field::-webkit-calendar-picker-indicator:hover {
+.input-field[type="date"]::-webkit-calendar-picker-indicator:hover,
+.input-field[type="time"]::-webkit-calendar-picker-indicator:hover {
   background: rgba(255, 16, 122, 0.25);
-  filter: invert(1) brightness(2) sepia(1) hue-rotate(290deg) saturate(4);
+  filter: invert(1) brightness(2) sepia(1) hue-rotate(290deg) saturate(4) !important;
 }
 
 /* Firefox */
-.input-field[type="date"]::-moz-calendar-picker-indicator {
+.input-field[type="date"]::-moz-calendar-picker-indicator,
+.input-field[type="time"]::-moz-calendar-picker-indicator {
   filter: invert(1);
 }
 
