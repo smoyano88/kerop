@@ -59,6 +59,27 @@ model Drink {
   createdAt   DateTime @default(now())
 }
 
+model Tatuador {
+  id           String            @id @default(uuid())
+  name         String
+  specialty    String
+  bio          String            @default("")
+  phone        String
+  instagram    String            @default("")
+  photoUrl     String            @default("")
+  order        Int               @default(0)
+  active       Boolean           @default(true)
+  contacts     TatuadorContact[]
+  createdAt    DateTime          @default(now())
+}
+
+model TatuadorContact {
+  id          String    @id @default(uuid())
+  tatuadorId  String
+  tatuador    Tatuador  @relation(fields: [tatuadorId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+}
+
 model PushSubscription {
   id        String   @id @default(cuid())
   endpoint  String   @unique

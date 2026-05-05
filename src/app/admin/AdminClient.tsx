@@ -67,8 +67,15 @@ export default function AdminClient({ events }: { events: Event[] }) {
   const [eventList, setEventList] = useState<Event[]>(events);
   
   // Navigation State
-  const [activeTab, setActiveTab] = useState<'events' | 'create' | 'matches' | 'participants' | 'drinks' | 'password'>('events');
+  const [activeTab, setActiveTab] = useState<'events' | 'create' | 'matches' | 'participants' | 'drinks' | 'tatuadores' | 'password'>('events');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Tatuadores State
+  interface TatuadorAdmin { id: string; name: string; specialty: string; bio: string; phone: string; instagram: string; photoUrl: string; order: number; active: boolean; contacts: { id: string; createdAt: string }[]; }
+  const [tatuadoresList, setTatuadoresList] = useState<TatuadorAdmin[]>([]);
+  const [tatuadoresLoading, setTatuadoresLoading] = useState(false);
+  const [tatForm, setTatForm] = useState({ name: '', specialty: '', bio: '', phone: '', instagram: '', photoUrl: '', order: 0 });
+  const [tatEditId, setTatEditId] = useState<string | null>(null);
 
   // Participants State
   const [allRegistrations, setAllRegistrations] = useState<RegistrationWithEvent[]>([]);
@@ -181,6 +188,9 @@ export default function AdminClient({ events }: { events: Event[] }) {
   useEffect(() => {
     if (activeTab === 'drinks' && isAuthenticated) {
       loadDrinkCatalog();
+    }
+    if (activeTab === 'tatuadores' && isAuthenticated) {
+      loadTatuadores();
     }
   }, [activeTab]);
   const [loginPassword, setLoginPassword] = useState('');
@@ -422,6 +432,42 @@ export default function AdminClient({ events }: { events: Event[] }) {
     } catch {} finally { setDrinksLoading(false); }
   };
 
+  const loadTatuadores = async () => {
+    setTatuadoresLoading(true);
+    try {
+      const res = await fetch('/api/tatuadores');
+      const data = await res.json();
+      setTatuadoresList(Array.isArray(data) ? data : []);
+    } catch {} finally { setTatuadoresLoading(false); }
+  };
+
+  const handleSaveTatuador = async () => {
+    if (!tatForm.name.trim() || !tatForm.specialty.trim() || !tatForm.phone.trim()) {
+      alert('Nombre, especialidad y teléfono son obligatorios.'); return;
+    }
+    setTatuadoresLoading(true);
+    try {
+      const method = tatEditId ? 'PUT' : 'POST';
+      const body = tatEditId ? { ...tatForm, id: tatEditId, active: true, password: currentAdminPassword } : { ...tatForm, password: currentAdminPassword };
+      const res = await fetch('/api/tatuadores', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const data = await res.json();
+      if (!res.ok) { alert(data.error); return; }
+      setTatForm({ name: '', specialty: '', bio: '', phone: '', instagram: '', photoUrl: '', order: 0 });
+      setTatEditId(null);
+      await loadTatuadores();
+    } catch {} finally { setTatuadoresLoading(false); }
+  };
+
+  const handleDeleteTatuador = async (id: string, name: string) => {
+    if (!confirm(`¿Eliminar a ${name} del listado?`)) return;
+    setTatuadoresLoading(true);
+    try {
+      const res = await fetch('/api/tatuadores', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, password: currentAdminPassword }) });
+      if (!res.ok) { const d = await res.json(); alert(d.error); return; }
+      await loadTatuadores();
+    } catch {} finally { setTatuadoresLoading(false); }
+  };
+
   // Convierte una clave VAPID base64url a ArrayBuffer (requerido por todos los browsers)
   const urlBase64ToUint8Array = (base64String: string): ArrayBuffer => {
     const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -642,6 +688,10 @@ export default function AdminClient({ events }: { events: Event[] }) {
             <span className="admin-nav-icon">🍹</span>
             <span className="admin-nav-label">Tragos</span>
           </div>
+          <div className={`admin-nav-item ${activeTab === 'tatuadores' ? 'active' : ''}`} onClick={() => setActiveTab('tatuadores')}>
+            <span className="admin-nav-icon">🎨</span>
+            <span className="admin-nav-label">Tatuadores</span>
+          </div>
           <div className={`admin-nav-item ${activeTab === 'password' ? 'active' : ''}`} onClick={() => setActiveTab('password')}>
             <span className="admin-nav-icon">🔑</span>
             <span className="admin-nav-label">Cambiar Contraseña</span>
@@ -681,6 +731,10 @@ export default function AdminClient({ events }: { events: Event[] }) {
           <div className={`admin-mobile-nav-item ${activeTab === 'drinks' ? 'active' : ''}`} onClick={() => setActiveTab('drinks')}>
             <span className="admin-nav-icon">🍹</span>
             <span>Tragos</span>
+          </div>
+          <div className={`admin-mobile-nav-item ${activeTab === 'tatuadores' ? 'active' : ''}`} onClick={() => setActiveTab('tatuadores')}>
+            <span className="admin-nav-icon">🎨</span>
+            <span>Tatuadores</span>
           </div>
           <div className={`admin-mobile-nav-item ${activeTab === 'password' ? 'active' : ''}`} onClick={() => setActiveTab('password')}>
             <span className="admin-nav-icon">🔑</span>
@@ -1608,6 +1662,84 @@ export default function AdminClient({ events }: { events: Event[] }) {
               {drinkCatalog.length === 0 && !drinksLoading && (
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', textAlign: 'center', padding: '1rem 0' }}>No hay tragos en el catálogo todavía.</p>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* ─── TAB: TATUADORES ─── */}
+        {activeTab === 'tatuadores' && (
+          <div style={{ maxWidth: '860px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+            {/* Formulario agregar / editar */}
+            <div className="glass-card" style={{ border: '1px solid rgba(0,255,255,0.2)' }}>
+              <h3 className="text-cyan" style={{ fontSize: '1.3rem', marginBottom: '1.25rem' }}>
+                {tatEditId ? '✏️ Editar Tatuador' : '➕ Agregar Tatuador'}
+              </h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                <input className="input-field" placeholder="Nombre *" value={tatForm.name} onChange={e => setTatForm(f => ({ ...f, name: e.target.value }))} />
+                <input className="input-field" placeholder="Especialidad * (ej: Blackwork · Fine Line)" value={tatForm.specialty} onChange={e => setTatForm(f => ({ ...f, specialty: e.target.value }))} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                <input className="input-field" placeholder="Teléfono WA * (ej: 59899123456)" value={tatForm.phone} onChange={e => setTatForm(f => ({ ...f, phone: e.target.value }))} />
+                <input className="input-field" placeholder="Instagram (ej: @maikdart)" value={tatForm.instagram} onChange={e => setTatForm(f => ({ ...f, instagram: e.target.value }))} />
+              </div>
+              <textarea
+                className="input-field"
+                placeholder="Bio (descripción breve del artista...)"
+                value={tatForm.bio}
+                onChange={e => setTatForm(f => ({ ...f, bio: e.target.value }))}
+                rows={3}
+                style={{ marginBottom: '0.75rem', resize: 'vertical' }}
+              />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.75rem', alignItems: 'center' }}>
+                <input className="input-field" placeholder="URL foto (opcional)" value={tatForm.photoUrl} onChange={e => setTatForm(f => ({ ...f, photoUrl: e.target.value }))} />
+                <input className="input-field" type="number" placeholder="Orden" value={tatForm.order} onChange={e => setTatForm(f => ({ ...f, order: parseInt(e.target.value) || 0 }))} style={{ width: '90px' }} />
+              </div>
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem', justifyContent: 'flex-end' }}>
+                {tatEditId && (
+                  <button onClick={() => { setTatEditId(null); setTatForm({ name: '', specialty: '', bio: '', phone: '', instagram: '', photoUrl: '', order: 0 }); }}
+                    style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-muted)', borderRadius: '8px', padding: '0.6rem 1.2rem', cursor: 'pointer' }}>
+                    Cancelar
+                  </button>
+                )}
+                <button onClick={handleSaveTatuador} disabled={tatuadoresLoading}
+                  style={{ background: 'rgba(0,255,255,0.12)', border: '1px solid rgba(0,255,255,0.4)', color: 'var(--neon-cyan)', borderRadius: '8px', padding: '0.6rem 1.4rem', cursor: 'pointer', fontWeight: 600 }}>
+                  {tatEditId ? 'Guardar cambios' : '+ Agregar'}
+                </button>
+              </div>
+            </div>
+
+            {/* Lista de tatuadores */}
+            <div className="glass-card" style={{ border: '1px solid rgba(255,16,122,0.2)' }}>
+              <h3 className="text-pink" style={{ fontSize: '1.3rem', marginBottom: '1.25rem' }}>Artistas ({tatuadoresList.length})</h3>
+              {tatuadoresLoading && <p style={{ color: 'var(--text-muted)' }}>Cargando...</p>}
+              {tatuadoresList.length === 0 && !tatuadoresLoading && (
+                <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '1rem 0' }}>No hay tatuadores agregados aún.</p>
+              )}
+              {tatuadoresList.map(tat => (
+                <div key={tat.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', padding: '0.9rem 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.2rem' }}>
+                      <span style={{ color: 'white', fontWeight: 600 }}>{tat.name}</span>
+                      {tat.instagram && <span className="text-cyan" style={{ fontSize: '0.8rem' }}>{tat.instagram}</span>}
+                      <span style={{ fontSize: '0.75rem', background: 'rgba(37,211,102,0.1)', border: '1px solid rgba(37,211,102,0.25)', color: '#25d366', borderRadius: '20px', padding: '0.1rem 0.5rem' }}>
+                        {tat.contacts.length} consultas
+                      </span>
+                    </div>
+                    <span style={{ color: 'var(--neon-pink)', fontSize: '0.78rem' }}>{tat.specialty}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button onClick={() => { setTatEditId(tat.id); setTatForm({ name: tat.name, specialty: tat.specialty, bio: tat.bio, phone: tat.phone, instagram: tat.instagram, photoUrl: tat.photoUrl, order: tat.order }); }}
+                      style={{ background: 'rgba(0,255,255,0.08)', border: '1px solid rgba(0,255,255,0.2)', color: 'var(--neon-cyan)', borderRadius: '6px', padding: '0.35rem 0.75rem', cursor: 'pointer', fontSize: '0.8rem' }}>
+                      Editar
+                    </button>
+                    <button onClick={() => handleDeleteTatuador(tat.id, tat.name)}
+                      style={{ background: 'rgba(255,16,122,0.08)', border: '1px solid rgba(255,16,122,0.2)', color: 'var(--neon-pink)', borderRadius: '6px', padding: '0.35rem 0.75rem', cursor: 'pointer', fontSize: '0.8rem' }}>
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
