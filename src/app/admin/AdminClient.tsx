@@ -1867,19 +1867,21 @@ export default function AdminClient({ events }: { events: Event[] }) {
                     {horarios[dia].open && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
                         <input
-                          type="time"
                           className="input-field"
-                          style={{ margin: 0, flex: 1, minWidth: 0 }}
+                          style={{ margin: 0, flex: 1, minWidth: 0, textAlign: 'center', letterSpacing: '1px' }}
                           value={horarios[dia].from}
                           onChange={e => setHorarios(h => ({ ...h, [dia]: { ...h[dia], from: e.target.value } }))}
+                          placeholder="09:00"
+                          maxLength={5}
                         />
                         <span style={{ color: 'var(--text-muted)', fontWeight: 700, flexShrink: 0 }}>–</span>
                         <input
-                          type="time"
                           className="input-field"
-                          style={{ margin: 0, flex: 1, minWidth: 0 }}
+                          style={{ margin: 0, flex: 1, minWidth: 0, textAlign: 'center', letterSpacing: '1px' }}
                           value={horarios[dia].to}
                           onChange={e => setHorarios(h => ({ ...h, [dia]: { ...h[dia], to: e.target.value } }))}
+                          placeholder="22:00"
+                          maxLength={5}
                         />
                       </div>
                     )}
