@@ -1884,7 +1884,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
           >
             <div
               onClick={e => e.stopPropagation()}
-              style={{ background: '#0d0d0d', border: '1px solid rgba(57,255,20,0.3)', borderRadius: '12px', padding: '2rem', maxWidth: '520px', width: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 0 30px rgba(57,255,20,0.15)' }}
+              style={{ background: '#0d0d0d', border: '1px solid rgba(57,255,20,0.3)', borderRadius: '12px', padding: '2rem', maxWidth: '780px', width: '100%', boxShadow: '0 0 30px rgba(57,255,20,0.15)' }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
                 <div>
@@ -1899,21 +1899,24 @@ export default function AdminClient({ events }: { events: Event[] }) {
                 <input className="input-field" placeholder="Apellido" value={addPartForm.lastName} onChange={e => setAddPartForm(f => ({ ...f, lastName: e.target.value }))} />
               </div>
 
-              <select className="input-field" value={addPartForm.gender} onChange={e => setAddPartForm(f => ({ ...f, gender: e.target.value as 'Hombre' | 'Mujer' }))} style={{ marginBottom: '0.75rem' }}>
-                <option value="Hombre">Hombre</option>
-                <option value="Mujer">Mujer</option>
-              </select>
-
-              <input className="input-field" placeholder="Instagram (@usuario)" value={addPartForm.instagram} onChange={e => setAddPartForm(f => ({ ...f, instagram: e.target.value }))} style={{ marginBottom: '0.75rem' }} />
-              <input className="input-field" placeholder="Teléfono (+598...)" value={addPartForm.phone} onChange={e => setAddPartForm(f => ({ ...f, phone: e.target.value }))} style={{ marginBottom: '0.75rem' }} />
-              <input className="input-field" placeholder="Email (opcional)" value={addPartForm.email} onChange={e => setAddPartForm(f => ({ ...f, email: e.target.value }))} style={{ marginBottom: '0.75rem' }} />
-
-              {evDrinks.length > 0 && (
-                <select className="input-field" value={addPartForm.selectedDrink} onChange={e => setAddPartForm(f => ({ ...f, selectedDrink: e.target.value }))} style={{ marginBottom: '0.75rem' }}>
-                  <option value="">Sin trago / elegir luego</option>
-                  {evDrinks.map(d => <option key={d} value={d}>{d}</option>)}
+              <div style={{ display: 'grid', gridTemplateColumns: evDrinks.length > 0 ? '1fr 1fr' : '1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                <select className="input-field" value={addPartForm.gender} onChange={e => setAddPartForm(f => ({ ...f, gender: e.target.value as 'Hombre' | 'Mujer' }))}>
+                  <option value="Hombre">Hombre</option>
+                  <option value="Mujer">Mujer</option>
                 </select>
-              )}
+                {evDrinks.length > 0 && (
+                  <select className="input-field" value={addPartForm.selectedDrink} onChange={e => setAddPartForm(f => ({ ...f, selectedDrink: e.target.value }))}>
+                    <option value="">Sin trago / elegir luego</option>
+                    {evDrinks.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                )}
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                <input className="input-field" placeholder="Instagram (@usuario)" value={addPartForm.instagram} onChange={e => setAddPartForm(f => ({ ...f, instagram: e.target.value }))} />
+                <input className="input-field" placeholder="Teléfono (+598...)" value={addPartForm.phone} onChange={e => setAddPartForm(f => ({ ...f, phone: e.target.value }))} />
+              </div>
+              <input className="input-field" placeholder="Email (opcional)" value={addPartForm.email} onChange={e => setAddPartForm(f => ({ ...f, email: e.target.value }))} style={{ marginBottom: '0.75rem' }} />
 
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.25rem', cursor: 'pointer' }}>
                 <input type="checkbox" checked={addPartForm.markAsPaid} onChange={e => setAddPartForm(f => ({ ...f, markAsPaid: e.target.checked }))} />
