@@ -776,34 +776,46 @@ export default function AdminClient({ events }: { events: Event[] }) {
                         </span>
                       </div>
 
-                      {total > 0 && (
-                        <>
-                          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: isExpanded ? '1rem' : 0 }}>
+                      {(() => {
+                        // Cupos reales disponibles (usando registros pagados como referencia)
+                        const spotsLeftMen = Math.max(0, totalSpotsMen - paidMen);
+                        const spotsLeftWomen = Math.max(0, totalSpotsWomen - paidWomen);
+                        const hasSpots = isHH || isMM
+                          ? (spotsLeftMen > 0 || spotsLeftWomen > 0)
+                          : (spotsLeftMen > 0 || spotsLeftWomen > 0);
+                        return (
+                          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: total > 0 && isExpanded ? '1rem' : total > 0 ? '1rem' : 0 }}>
+                            {total > 0 && (
+                              <button
+                                onClick={() => setExpandedEvent(isExpanded ? null : ev.id)}
+                                style={{ background: 'none', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-muted)', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', transition: 'all 0.3s' }}
+                              >
+                                {isExpanded ? '▲ Ocultar inscriptos' : `▼ Ver ${total} inscripto${total !== 1 ? 's' : ''}`}
+                              </button>
+                            )}
+                            {total > 0 && (
+                              <a
+                                href={`/admin/planilla/${ev.id}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{ background: 'rgba(234, 179, 8, 0.15)', border: '1px solid rgba(234, 179, 8, 0.3)', color: '#fde047', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', textDecoration: 'none', transition: 'all 0.3s', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                              >
+                                <span>🖨️</span> Descargar Planilla
+                              </a>
+                            )}
                             <button
-                              onClick={() => setExpandedEvent(isExpanded ? null : ev.id)}
-                              style={{ background: 'none', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-muted)', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', transition: 'all 0.3s' }}
+                              onClick={() => hasSpots ? setAddParticipantEventId(ev.id) : undefined}
+                              disabled={!hasSpots}
+                              title={!hasSpots ? 'Evento sin cupos disponibles' : 'Agregar participante manualmente'}
+                              style={{ background: hasSpots ? 'rgba(57,255,20,0.12)' : 'rgba(255,255,255,0.03)', border: `1px solid ${hasSpots ? 'rgba(57,255,20,0.35)' : 'rgba(255,255,255,0.08)'}`, color: hasSpots ? 'var(--neon-green)' : 'var(--text-muted)', padding: '0.5rem 1rem', borderRadius: '8px', cursor: hasSpots ? 'pointer' : 'not-allowed', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem', opacity: hasSpots ? 1 : 0.4 }}
                             >
-                              {isExpanded ? '▲ Ocultar inscriptos' : `▼ Ver ${total} inscripto${total !== 1 ? 's' : ''}`}
-                            </button>
-                            
-                            <a
-                              href={`/admin/planilla/${ev.id}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              style={{ background: 'rgba(234, 179, 8, 0.15)', border: '1px solid rgba(234, 179, 8, 0.3)', color: '#fde047', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', textDecoration: 'none', transition: 'all 0.3s', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-                            >
-                              <span>🖨️</span> Descargar Planilla
-                            </a>
-
-                            <button
-                              onClick={() => setAddParticipantEventId(ev.id)}
-                              style={{ background: 'rgba(57,255,20,0.12)', border: '1px solid rgba(57,255,20,0.35)', color: 'var(--neon-green)', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-                            >
-                              <span>➕</span> Agregar Participante
+                              <span>➕</span> {hasSpots ? 'Agregar Participante' : 'Sin cupos'}
                             </button>
                           </div>
+                        );
+                      })()}
 
-                          {isExpanded && (
+                      {total > 0 && isExpanded && (
                             <div style={{ width: '100%', borderRadius: '10px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', border: '1px solid rgba(255,255,255,0.07)', background: 'rgba(0,0,0,0.2)' }}>
                               <table style={{ minWidth: '700px', width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
                                 <thead>
@@ -897,8 +909,6 @@ export default function AdminClient({ events }: { events: Event[] }) {
                               </table>
                             </div>
                           )}
-                        </>
-                      )}
                     </div>
                   );
                 })}

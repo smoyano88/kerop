@@ -170,17 +170,30 @@ a {
   box-shadow: 0 0 10px rgba(255, 16, 122, 0.3);
 }
 
-/* Hacer visible el ícono del calendario en inputs date/time sobre fondo oscuro */
+/* Hacer visible el ícono del calendario/reloj en inputs date/time sobre fondo oscuro */
+.input-field[type="date"],
+.input-field[type="time"] {
+  color-scheme: dark;
+}
+
 .input-field::-webkit-calendar-picker-indicator {
-  filter: invert(1) brightness(1.5);
-  opacity: 0.85;
+  filter: invert(1) brightness(2);
+  opacity: 1;
   cursor: pointer;
-  padding: 4px;
+  padding: 6px;
+  margin-right: 2px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .input-field::-webkit-calendar-picker-indicator:hover {
-  opacity: 1;
-  filter: invert(1) brightness(2) sepia(1) hue-rotate(290deg) saturate(5);
+  background: rgba(255, 16, 122, 0.25);
+  filter: invert(1) brightness(2) sepia(1) hue-rotate(290deg) saturate(4);
+}
+
+/* Firefox */
+.input-field[type="date"]::-moz-calendar-picker-indicator {
+  filter: invert(1);
 }
 
 /* Header/Nav */
