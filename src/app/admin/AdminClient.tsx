@@ -67,7 +67,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
   const [eventList, setEventList] = useState<Event[]>(events);
   
   // Navigation State
-  const [activeTab, setActiveTab] = useState<'events' | 'create' | 'matches' | 'participants' | 'drinks' | 'tatuadores' | 'password'>('events');
+  const [activeTab, setActiveTab] = useState<'events' | 'create' | 'matches' | 'participants' | 'drinks' | 'tatuadores' | 'contenido' | 'password'>('events');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Tatuadores State
@@ -76,6 +76,75 @@ export default function AdminClient({ events }: { events: Event[] }) {
   const [tatuadoresLoading, setTatuadoresLoading] = useState(false);
   const [tatForm, setTatForm] = useState({ name: '', specialty: '', bio: '', phone: '', instagram: '', photoUrl: '', order: 0 });
   const [tatEditId, setTatEditId] = useState<string | null>(null);
+
+  // Contenido State (horarios + carta)
+  interface MenuItemAdmin { id: string; category: string; name: string; description: string; price: number; imageUrl: string; available: boolean; order: number; }
+  const [horarios, setHorarios] = useState({ lunes_viernes: '', sabado: '', domingo: '' });
+  const [horariosLoading, setHorariosLoading] = useState(false);
+  const [menuItems, setMenuItems] = useState<MenuItemAdmin[]>([]);
+  const [menuLoading, setMenuLoading] = useState(false);
+  const [menuForm, setMenuForm] = useState({ category: 'cafe', name: '', description: '', price: '', imageUrl: '', order: 0 });
+  const [menuEditId, setMenuEditId] = useState<string | null>(null);
+
+  const loadContenido = async () => {
+    setHorariosLoading(true);
+    setMenuLoading(true);
+    try {
+      const [settingsRes, menuRes] = await Promise.all([
+        fetch('/api/settings').then(r => r.json()),
+        fetch('/api/menu-items').then(r => r.json()),
+      ]);
+      setHorarios({
+        lunes_viernes: settingsRes.horario_lunes_viernes ?? '',
+        sabado: settingsRes.horario_sabado ?? '',
+        domingo: settingsRes.horario_domingo ?? '',
+      });
+      setMenuItems(menuRes);
+    } catch { /* silently fail */ } finally {
+      setHorariosLoading(false);
+      setMenuLoading(false);
+    }
+  };
+
+  const handleSaveHorarios = async () => {
+    setHorariosLoading(true);
+    try {
+      await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          password: currentAdminPassword,
+          horario_lunes_viernes: horarios.lunes_viernes,
+          horario_sabado: horarios.sabado,
+          horario_domingo: horarios.domingo,
+        }),
+      });
+      setSuccess('Horarios actualizados');
+    } catch { setError('Error guardando horarios'); } finally { setHorariosLoading(false); }
+  };
+
+  const handleSaveMenuItem = async () => {
+    setMenuLoading(true);
+    try {
+      const method = menuEditId ? 'PUT' : 'POST';
+      const body = menuEditId
+        ? { password: currentAdminPassword, id: menuEditId, ...menuForm, price: Number(menuForm.price) }
+        : { password: currentAdminPassword, ...menuForm, price: Number(menuForm.price) };
+      await fetch('/api/menu-items', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      setMenuForm({ category: 'cafe', name: '', description: '', price: '', imageUrl: '', order: 0 });
+      setMenuEditId(null);
+      await loadContenido();
+      setSuccess(menuEditId ? 'Ítem actualizado' : 'Ítem agregado');
+    } catch { setError('Error guardando ítem'); } finally { setMenuLoading(false); }
+  };
+
+  const handleDeleteMenuItem = async (id: string) => {
+    if (!confirm('¿Eliminar este ítem?')) return;
+    try {
+      await fetch('/api/menu-items', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, password: currentAdminPassword }) });
+      await loadContenido();
+    } catch { setError('Error eliminando ítem'); }
+  };
 
   // Participants State
   const [allRegistrations, setAllRegistrations] = useState<RegistrationWithEvent[]>([]);
@@ -191,6 +260,9 @@ export default function AdminClient({ events }: { events: Event[] }) {
     }
     if (activeTab === 'tatuadores' && isAuthenticated) {
       loadTatuadores();
+    }
+    if (activeTab === 'contenido' && isAuthenticated) {
+      loadContenido();
     }
   }, [activeTab]);
   const [loginPassword, setLoginPassword] = useState('');
@@ -692,6 +764,10 @@ export default function AdminClient({ events }: { events: Event[] }) {
             <span className="admin-nav-icon">🎨</span>
             <span className="admin-nav-label">Tatuadores</span>
           </div>
+          <div className={`admin-nav-item ${activeTab === 'contenido' ? 'active' : ''}`} onClick={() => setActiveTab('contenido')}>
+            <span className="admin-nav-icon">✏️</span>
+            <span className="admin-nav-label">Contenido</span>
+          </div>
           <div className={`admin-nav-item ${activeTab === 'password' ? 'active' : ''}`} onClick={() => setActiveTab('password')}>
             <span className="admin-nav-icon">🔑</span>
             <span className="admin-nav-label">Cambiar Contraseña</span>
@@ -735,6 +811,10 @@ export default function AdminClient({ events }: { events: Event[] }) {
           <div className={`admin-mobile-nav-item ${activeTab === 'tatuadores' ? 'active' : ''}`} onClick={() => setActiveTab('tatuadores')}>
             <span className="admin-nav-icon">🎨</span>
             <span>Tatuadores</span>
+          </div>
+          <div className={`admin-mobile-nav-item ${activeTab === 'contenido' ? 'active' : ''}`} onClick={() => setActiveTab('contenido')}>
+            <span className="admin-nav-icon">✏️</span>
+            <span>Contenido</span>
           </div>
           <div className={`admin-mobile-nav-item ${activeTab === 'password' ? 'active' : ''}`} onClick={() => setActiveTab('password')}>
             <span className="admin-nav-icon">🔑</span>
@@ -1741,6 +1821,124 @@ export default function AdminClient({ events }: { events: Event[] }) {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* ─── TAB: CONTENIDO ─── */}
+        {activeTab === 'contenido' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+            <h3 style={{ fontSize: '1.5rem', margin: 0 }}>Contenido del Sitio</h3>
+
+            {/* ── Horarios ── */}
+            <div className="glass-card" style={{ border: '1px solid rgba(0,255,255,0.15)' }}>
+              <h4 className="text-cyan" style={{ fontSize: '1.1rem', marginBottom: '1.5rem' }}>Horarios</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                {([
+                  { label: 'Lunes a Viernes', key: 'lunes_viernes' as const, placeholder: 'Ej: 9:00 – 22:00' },
+                  { label: 'Sábado', key: 'sabado' as const, placeholder: 'Ej: 10:00 – 23:00' },
+                  { label: 'Domingo', key: 'domingo' as const, placeholder: 'Ej: Cerrado' },
+                ] as { label: string; key: keyof typeof horarios; placeholder: string }[]).map(({ label, key, placeholder }) => (
+                  <div key={key}>
+                    <label className="input-label">{label}</label>
+                    <input
+                      className="input-field"
+                      value={horarios[key]}
+                      onChange={e => setHorarios(h => ({ ...h, [key]: e.target.value }))}
+                      placeholder={placeholder}
+                    />
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={handleSaveHorarios}
+                disabled={horariosLoading}
+                className="btn-primary"
+                style={{ minWidth: '160px' }}
+              >
+                {horariosLoading ? 'Guardando...' : 'Guardar Horarios'}
+              </button>
+            </div>
+
+            {/* ── Carta / Menú ── */}
+            <div className="glass-card" style={{ border: '1px solid rgba(0,255,255,0.15)' }}>
+              <h4 className="text-cyan" style={{ fontSize: '1.1rem', marginBottom: '1.5rem' }}>
+                {menuEditId ? 'Editar Ítem de Carta' : 'Agregar Ítem de Carta'}
+              </h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+                <div>
+                  <label className="input-label">Categoría</label>
+                  <select className="input-field" value={menuForm.category} onChange={e => setMenuForm(f => ({ ...f, category: e.target.value }))}>
+                    <option value="cafe">Café</option>
+                    <option value="comida">Comida</option>
+                    <option value="tragos">Tragos</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="input-label">Nombre *</label>
+                  <input className="input-field" value={menuForm.name} onChange={e => setMenuForm(f => ({ ...f, name: e.target.value }))} placeholder="Ej: Flat White" />
+                </div>
+                <div>
+                  <label className="input-label">Precio (UYU) *</label>
+                  <input className="input-field" type="number" value={menuForm.price} onChange={e => setMenuForm(f => ({ ...f, price: e.target.value }))} placeholder="Ej: 180" />
+                </div>
+                <div>
+                  <label className="input-label">Descripción</label>
+                  <input className="input-field" value={menuForm.description} onChange={e => setMenuForm(f => ({ ...f, description: e.target.value }))} placeholder="Descripción corta" />
+                </div>
+                <div>
+                  <label className="input-label">URL de imagen</label>
+                  <input className="input-field" value={menuForm.imageUrl} onChange={e => setMenuForm(f => ({ ...f, imageUrl: e.target.value }))} placeholder="/img/..." />
+                </div>
+                <div>
+                  <label className="input-label">Orden</label>
+                  <input className="input-field" type="number" value={menuForm.order} onChange={e => setMenuForm(f => ({ ...f, order: Number(e.target.value) }))} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button onClick={handleSaveMenuItem} disabled={menuLoading || !menuForm.name.trim() || !menuForm.price} className="btn-primary">
+                  {menuLoading ? 'Guardando...' : menuEditId ? 'Actualizar' : 'Agregar'}
+                </button>
+                {menuEditId && (
+                  <button onClick={() => { setMenuEditId(null); setMenuForm({ category: 'cafe', name: '', description: '', price: '', imageUrl: '', order: 0 }); }}
+                    style={{ background: 'none', border: '1px solid rgba(255,255,255,0.15)', color: 'var(--text-muted)', padding: '0.75rem 1.25rem', borderRadius: '10px', cursor: 'pointer' }}>
+                    Cancelar
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* ── Lista de ítems ── */}
+            {(['cafe', 'comida', 'tragos'] as const).map(cat => {
+              const items = menuItems.filter(i => i.category === cat);
+              if (items.length === 0) return null;
+              const catLabel: Record<string, string> = { cafe: 'Café', comida: 'Comida', tragos: 'Tragos' };
+              return (
+                <div key={cat}>
+                  <h4 style={{ fontSize: '1rem', marginBottom: '1rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '2px' }}>{catLabel[cat]}</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {items.map(item => (
+                      <div key={item.id} className="glass-card" style={{ padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', border: '1px solid rgba(255,255,255,0.07)' }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 600 }}>{item.name}</div>
+                          {item.description && <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{item.description}</div>}
+                        </div>
+                        <div style={{ color: 'var(--neon-cyan)', fontWeight: 600, whiteSpace: 'nowrap' }}>${item.price}</div>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button onClick={() => { setMenuEditId(item.id); setMenuForm({ category: item.category, name: item.name, description: item.description, price: String(item.price), imageUrl: item.imageUrl, order: item.order }); }}
+                            style={{ background: 'rgba(0,255,255,0.1)', border: '1px solid rgba(0,255,255,0.2)', color: 'var(--neon-cyan)', padding: '0.3rem 0.7rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem' }}>
+                            Editar
+                          </button>
+                          <button onClick={() => handleDeleteMenuItem(item.id)}
+                            style={{ background: 'rgba(255,16,122,0.1)', border: '1px solid rgba(255,16,122,0.2)', color: 'var(--neon-pink)', padding: '0.3rem 0.7rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem' }}>
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 
