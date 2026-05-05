@@ -67,7 +67,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
   const [eventList, setEventList] = useState<Event[]>(events);
   
   // Navigation State
-  const [activeTab, setActiveTab] = useState<'events' | 'create' | 'matches' | 'participants' | 'drinks' | 'tatuadores' | 'password'>('events');
+  const [activeTab, setActiveTab] = useState<'events' | 'create' | 'matches' | 'participants' | 'drinks' | 'tatuadores' | 'contenido' | 'password'>('events');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Tatuadores State
@@ -76,6 +76,91 @@ export default function AdminClient({ events }: { events: Event[] }) {
   const [tatuadoresLoading, setTatuadoresLoading] = useState(false);
   const [tatForm, setTatForm] = useState({ name: '', specialty: '', bio: '', phone: '', instagram: '', photoUrl: '', order: 0 });
   const [tatEditId, setTatEditId] = useState<string | null>(null);
+
+  // Contenido State (horarios + carta)
+  interface MenuItemAdmin { id: string; category: string; name: string; description: string; price: number; imageUrl: string; available: boolean; order: number; }
+  const DIAS = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] as const;
+  type Dia = typeof DIAS[number];
+  const DIA_LABELS: Record<Dia, string> = { lunes: 'Lunes', martes: 'Martes', miercoles: 'Miércoles', jueves: 'Jueves', viernes: 'Viernes', sabado: 'Sábado', domingo: 'Domingo' };
+  const [horarios, setHorarios] = useState<Record<Dia, { open: boolean; from: string; to: string }>>({
+    lunes:    { open: true,  from: '', to: '' },
+    martes:   { open: false, from: '', to: '' },
+    miercoles:{ open: true,  from: '', to: '' },
+    jueves:   { open: true,  from: '', to: '' },
+    viernes:  { open: true,  from: '', to: '' },
+    sabado:   { open: true,  from: '', to: '' },
+    domingo:  { open: true,  from: '', to: '' },
+  });
+  const [horariosLoading, setHorariosLoading] = useState(false);
+  const [menuItems, setMenuItems] = useState<MenuItemAdmin[]>([]);
+  const [menuLoading, setMenuLoading] = useState(false);
+  const [menuForm, setMenuForm] = useState({ category: 'cafe', name: '', description: '', price: '', imageUrl: '', order: 0 });
+  const [menuEditId, setMenuEditId] = useState<string | null>(null);
+
+  const loadContenido = async () => {
+    setHorariosLoading(true);
+    setMenuLoading(true);
+    try {
+      const [settingsRes, menuRes] = await Promise.all([
+        fetch('/api/settings').then(r => r.json()),
+        fetch('/api/menu-items').then(r => r.json()),
+      ]);
+      const newHorarios = { ...horarios };
+      for (const dia of DIAS) {
+        const raw: string = settingsRes[`horario_${dia}`] ?? '';
+        if (!raw || raw === 'cerrado') {
+          newHorarios[dia] = { open: false, from: '', to: '' };
+        } else {
+          // formato esperado: "9:00 – 22:00" o "9:00 - 22:00"
+          const parts = raw.split(/\s*[–-]\s*/);
+          newHorarios[dia] = { open: true, from: parts[0]?.trim() ?? '', to: parts[1]?.trim() ?? '' };
+        }
+      }
+      setHorarios(newHorarios);
+      setMenuItems(menuRes);
+    } catch { /* silently fail */ } finally {
+      setHorariosLoading(false);
+      setMenuLoading(false);
+    }
+  };
+
+  const handleSaveHorarios = async () => {
+    setHorariosLoading(true);
+    try {
+      await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          password: currentAdminPassword,
+          ...Object.fromEntries(DIAS.map(dia => [`horario_${dia}`, horarios[dia].open ? `${horarios[dia].from} – ${horarios[dia].to}` : 'cerrado'])),
+        }),
+      });
+      setSuccess('Horarios actualizados');
+    } catch { setError('Error guardando horarios'); } finally { setHorariosLoading(false); }
+  };
+
+  const handleSaveMenuItem = async () => {
+    setMenuLoading(true);
+    try {
+      const method = menuEditId ? 'PUT' : 'POST';
+      const body = menuEditId
+        ? { password: currentAdminPassword, id: menuEditId, ...menuForm, price: Number(menuForm.price) }
+        : { password: currentAdminPassword, ...menuForm, price: Number(menuForm.price) };
+      await fetch('/api/menu-items', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      setMenuForm({ category: 'cafe', name: '', description: '', price: '', imageUrl: '', order: 0 });
+      setMenuEditId(null);
+      await loadContenido();
+      setSuccess(menuEditId ? 'Ítem actualizado' : 'Ítem agregado');
+    } catch { setError('Error guardando ítem'); } finally { setMenuLoading(false); }
+  };
+
+  const handleDeleteMenuItem = async (id: string) => {
+    if (!confirm('¿Eliminar este ítem?')) return;
+    try {
+      await fetch('/api/menu-items', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, password: currentAdminPassword }) });
+      await loadContenido();
+    } catch { setError('Error eliminando ítem'); }
+  };
 
   // Participants State
   const [allRegistrations, setAllRegistrations] = useState<RegistrationWithEvent[]>([]);
@@ -191,6 +276,9 @@ export default function AdminClient({ events }: { events: Event[] }) {
     }
     if (activeTab === 'tatuadores' && isAuthenticated) {
       loadTatuadores();
+    }
+    if (activeTab === 'contenido' && isAuthenticated) {
+      loadContenido();
     }
   }, [activeTab]);
   const [loginPassword, setLoginPassword] = useState('');
@@ -692,6 +780,10 @@ export default function AdminClient({ events }: { events: Event[] }) {
             <span className="admin-nav-icon">🎨</span>
             <span className="admin-nav-label">Tatuadores</span>
           </div>
+          <div className={`admin-nav-item ${activeTab === 'contenido' ? 'active' : ''}`} onClick={() => setActiveTab('contenido')}>
+            <span className="admin-nav-icon">✏️</span>
+            <span className="admin-nav-label">Contenido</span>
+          </div>
           <div className={`admin-nav-item ${activeTab === 'password' ? 'active' : ''}`} onClick={() => setActiveTab('password')}>
             <span className="admin-nav-icon">🔑</span>
             <span className="admin-nav-label">Cambiar Contraseña</span>
@@ -735,6 +827,10 @@ export default function AdminClient({ events }: { events: Event[] }) {
           <div className={`admin-mobile-nav-item ${activeTab === 'tatuadores' ? 'active' : ''}`} onClick={() => setActiveTab('tatuadores')}>
             <span className="admin-nav-icon">🎨</span>
             <span>Tatuadores</span>
+          </div>
+          <div className={`admin-mobile-nav-item ${activeTab === 'contenido' ? 'active' : ''}`} onClick={() => setActiveTab('contenido')}>
+            <span className="admin-nav-icon">✏️</span>
+            <span>Contenido</span>
           </div>
           <div className={`admin-mobile-nav-item ${activeTab === 'password' ? 'active' : ''}`} onClick={() => setActiveTab('password')}>
             <span className="admin-nav-icon">🔑</span>
@@ -1741,6 +1837,169 @@ export default function AdminClient({ events }: { events: Event[] }) {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* ─── TAB: CONTENIDO ─── */}
+        {activeTab === 'contenido' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+            <h3 style={{ fontSize: '1.5rem', margin: 0 }}>Contenido del Sitio</h3>
+
+            {/* ── Horarios ── */}
+            <div className="glass-card" style={{ border: '1px solid rgba(0,255,255,0.15)' }}>
+              <h4 className="text-cyan" style={{ fontSize: '1.1rem', marginBottom: '1.5rem' }}>Horarios</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                {DIAS.map(dia => (
+                  <div key={dia} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.07)' }}>
+                    <span style={{ width: '90px', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-muted)' }}>{DIA_LABELS[dia]}</span>
+                    {/* Toggle abierto/cerrado */}
+                    <button
+                      onClick={() => setHorarios(h => ({ ...h, [dia]: { ...h[dia], open: !h[dia].open } }))}
+                      style={{
+                        padding: '0.3rem 0.85rem', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', border: 'none', transition: 'all 0.2s',
+                        background: horarios[dia].open ? 'rgba(57,255,20,0.15)' : 'rgba(255,16,122,0.15)',
+                        color: horarios[dia].open ? '#39ff14' : 'var(--neon-pink)',
+                        boxShadow: horarios[dia].open ? '0 0 8px rgba(57,255,20,0.3)' : '0 0 8px rgba(255,16,122,0.3)',
+                      }}
+                    >
+                      {horarios[dia].open ? 'ABIERTO' : 'CERRADO'}
+                    </button>
+                    {horarios[dia].open && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
+                        <input
+                          className="input-field"
+                          style={{ margin: 0, flex: 1, minWidth: 0, textAlign: 'center', letterSpacing: '1px' }}
+                          value={horarios[dia].from}
+                          onChange={e => setHorarios(h => ({ ...h, [dia]: { ...h[dia], from: e.target.value } }))}
+                          placeholder="09:00"
+                          maxLength={5}
+                        />
+                        <span style={{ color: 'var(--text-muted)', fontWeight: 700, flexShrink: 0 }}>–</span>
+                        <input
+                          className="input-field"
+                          style={{ margin: 0, flex: 1, minWidth: 0, textAlign: 'center', letterSpacing: '1px' }}
+                          value={horarios[dia].to}
+                          onChange={e => setHorarios(h => ({ ...h, [dia]: { ...h[dia], to: e.target.value } }))}
+                          placeholder="22:00"
+                          maxLength={5}
+                        />
+                      </div>
+                    )}
+                    {!horarios[dia].open && <span style={{ flex: 1, fontSize: '0.85rem', color: 'rgba(255,255,255,0.2)' }}>—</span>}
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={handleSaveHorarios}
+                disabled={horariosLoading}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+                  background: 'rgba(0,255,255,0.1)', border: '1px solid rgba(0,255,255,0.4)',
+                  color: 'var(--neon-cyan)', padding: '0.7rem 1.5rem', borderRadius: '10px',
+                  cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem', letterSpacing: '1px',
+                  boxShadow: '0 0 12px rgba(0,255,255,0.15)', transition: 'all 0.2s',
+                  opacity: horariosLoading ? 0.6 : 1,
+                }}
+                onMouseEnter={e => { if (!horariosLoading) (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 20px rgba(0,255,255,0.4)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 12px rgba(0,255,255,0.15)'; }}
+              >
+                {horariosLoading ? '⏳ Guardando...' : '✓ Guardar Horarios'}
+              </button>
+            </div>
+
+            {/* ── Carta / Menú ── */}
+            <div className="glass-card" style={{ border: '1px solid rgba(0,255,255,0.15)' }}>
+              <h4 className="text-cyan" style={{ fontSize: '1.1rem', marginBottom: '1.5rem' }}>
+                {menuEditId ? 'Editar Ítem de Carta' : 'Agregar Ítem de Carta'}
+              </h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+                <div>
+                  <label className="input-label">Categoría</label>
+                  <select className="input-field" value={menuForm.category} onChange={e => setMenuForm(f => ({ ...f, category: e.target.value }))}>
+                    <option value="cafe">Café</option>
+                    <option value="comida">Comida</option>
+                    <option value="tragos">Tragos</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="input-label">Nombre *</label>
+                  <input className="input-field" value={menuForm.name} onChange={e => setMenuForm(f => ({ ...f, name: e.target.value }))} placeholder="Ej: Flat White" />
+                </div>
+                <div>
+                  <label className="input-label">Precio (UYU) *</label>
+                  <input className="input-field" type="number" value={menuForm.price} onChange={e => setMenuForm(f => ({ ...f, price: e.target.value }))} placeholder="Ej: 180" />
+                </div>
+                <div>
+                  <label className="input-label">Descripción</label>
+                  <input className="input-field" value={menuForm.description} onChange={e => setMenuForm(f => ({ ...f, description: e.target.value }))} placeholder="Descripción corta" />
+                </div>
+                <div>
+                  <label className="input-label">URL de imagen</label>
+                  <input className="input-field" value={menuForm.imageUrl} onChange={e => setMenuForm(f => ({ ...f, imageUrl: e.target.value }))} placeholder="/img/..." />
+                </div>
+                <div>
+                  <label className="input-label">Orden</label>
+                  <input className="input-field" type="number" value={menuForm.order} onChange={e => setMenuForm(f => ({ ...f, order: Number(e.target.value) }))} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button
+                  onClick={handleSaveMenuItem}
+                  disabled={menuLoading || !menuForm.name.trim() || !menuForm.price}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+                    background: 'rgba(255,16,122,0.15)', border: '1px solid rgba(255,16,122,0.5)',
+                    color: 'var(--neon-pink)', padding: '0.7rem 1.5rem', borderRadius: '10px',
+                    cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem', letterSpacing: '1px',
+                    boxShadow: '0 0 12px rgba(255,16,122,0.2)', transition: 'all 0.2s',
+                    opacity: (menuLoading || !menuForm.name.trim() || !menuForm.price) ? 0.5 : 1,
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 20px rgba(255,16,122,0.5)'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 12px rgba(255,16,122,0.2)'; }}
+                >
+                  {menuLoading ? '⏳ Guardando...' : menuEditId ? '✓ Actualizar' : '+ Agregar'}
+                </button>
+                {menuEditId && (
+                  <button onClick={() => { setMenuEditId(null); setMenuForm({ category: 'cafe', name: '', description: '', price: '', imageUrl: '', order: 0 }); }}
+                    style={{ background: 'none', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-muted)', padding: '0.7rem 1.25rem', borderRadius: '10px', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem' }}>
+                    Cancelar
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* ── Lista de ítems ── */}
+            {(['cafe', 'comida', 'tragos'] as const).map(cat => {
+              const items = menuItems.filter(i => i.category === cat);
+              if (items.length === 0) return null;
+              const catLabel: Record<string, string> = { cafe: 'Café', comida: 'Comida', tragos: 'Tragos' };
+              return (
+                <div key={cat}>
+                  <h4 style={{ fontSize: '1rem', marginBottom: '1rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '2px' }}>{catLabel[cat]}</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {items.map(item => (
+                      <div key={item.id} className="glass-card" style={{ padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', border: '1px solid rgba(255,255,255,0.07)' }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 600 }}>{item.name}</div>
+                          {item.description && <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{item.description}</div>}
+                        </div>
+                        <div style={{ color: 'var(--neon-cyan)', fontWeight: 600, whiteSpace: 'nowrap' }}>${item.price}</div>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button onClick={() => { setMenuEditId(item.id); setMenuForm({ category: item.category, name: item.name, description: item.description, price: String(item.price), imageUrl: item.imageUrl, order: item.order }); }}
+                            style={{ background: 'rgba(0,255,255,0.1)', border: '1px solid rgba(0,255,255,0.2)', color: 'var(--neon-cyan)', padding: '0.3rem 0.7rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem' }}>
+                            Editar
+                          </button>
+                          <button onClick={() => handleDeleteMenuItem(item.id)}
+                            style={{ background: 'rgba(255,16,122,0.1)', border: '1px solid rgba(255,16,122,0.2)', color: 'var(--neon-pink)', padding: '0.3rem 0.7rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem' }}>
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 

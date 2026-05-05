@@ -1,7 +1,20 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import { prisma } from '@/lib/prisma';
 
-export default function Home() {
+export const revalidate = 60;
+
+const DIAS = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] as const;
+const DIA_LABELS: Record<string, string> = { lunes: 'Lun', martes: 'Mar', miercoles: 'Mié', jueves: 'Jue', viernes: 'Vie', sabado: 'Sáb', domingo: 'Dom' };
+
+export default async function Home() {
+  const settings = await prisma.setting.findMany();
+  const settingsMap: Record<string, string> = {};
+  for (const s of settings) settingsMap[s.key] = s.value;
+
+  const horarioRows = DIAS
+    .map(dia => ({ dia, label: DIA_LABELS[dia], value: settingsMap[`horario_${dia}`] ?? '' }))
+    .filter(r => r.value && r.value !== 'cerrado');
   const alfajores = [
     { name: 'Baileys', desc: 'Masa de cacao negro rellena de crema de Baileys, bañado en chocolate blanco. El favorito de la casa', img: '/img/alfajor-baileys.jpg' },
     { name: 'Banana Split', desc: 'Masa de vainilla, dulce de leche y trozos de chocolate con cobertura de chocolate blanco', img: '/img/alfajor-banana-split.jpg' },
@@ -72,9 +85,9 @@ export default function Home() {
             <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>☕</div>
             <h3 style={{ fontSize: '1.3rem', marginBottom: '1rem' }}>Horarios</h3>
             <div style={{ color: 'var(--text-muted)', lineHeight: 2, fontSize: '0.95rem' }}>
-              <p><span style={{ color: 'white' }}>Mar</span> 10 a 19h</p>
-              <p><span style={{ color: 'white' }}>Mié–Sáb</span> 10 a 20h</p>
-              <p><span style={{ color: 'white' }}>Dom</span> 13 a 20h</p>
+              {horarioRows.map(r => (
+                <p key={r.dia}><span style={{ color: 'white' }}>{r.label}</span> {r.value}</p>
+              ))}
             </div>
             <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', margin: '1.25rem 0' }} />
             <Link href="/eventos" className="btn btn-primary btn-pulse" style={{ width: '100%', fontSize: '0.95rem', padding: '0.85rem' }}>

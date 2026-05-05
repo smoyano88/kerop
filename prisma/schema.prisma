@@ -80,6 +80,18 @@ model TatuadorContact {
   createdAt   DateTime  @default(now())
 }
 
+model MenuItem {
+  id          String   @id @default(uuid())
+  category    String   // "cafe" | "comida" | "tragos"
+  name        String
+  description String   @default("")
+  price       Int      // en pesos uruguayos
+  imageUrl    String   @default("")
+  available   Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+}
+
 model PushSubscription {
   id        String   @id @default(cuid())
   endpoint  String   @unique
