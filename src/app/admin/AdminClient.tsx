@@ -162,6 +162,47 @@ export default function AdminClient({ events }: { events: Event[] }) {
     } catch { setError('Error eliminando ítem'); }
   };
 
+  // Scan cuaderno state
+  interface ScannedParticipante { firstName: string; lastName: string; gender: 'Hombre' | 'Mujer'; phone: string | null; selectedDrink: string; age: number | null; grupos: number[]; }
+  interface ScannedEvento { groupNumber: number; ageRange: string; date: string; type: string; }
+  const [scanOpen, setScanOpen] = useState(false);
+  const [scanLoading, setScanLoading] = useState(false);
+  const [scanResult, setScanResult] = useState<{ participantes: ScannedParticipante[]; eventosDetectados: ScannedEvento[] } | null>(null);
+  const [importLoading, setImportLoading] = useState(false);
+  const scanInputRef = useRef<HTMLInputElement>(null);
+
+  const handleScanImage = async (file: File) => {
+    setScanLoading(true);
+    setScanResult(null);
+    try {
+      const formData = new FormData();
+      formData.append('password', currentAdminPassword);
+      formData.append('image', file);
+      const res = await fetch('/api/scan-cuaderno', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data.error) { setError(data.error); return; }
+      setScanResult(data);
+    } catch { setError('Error procesando imagen'); } finally { setScanLoading(false); }
+  };
+
+  const handleImport = async () => {
+    if (!scanResult) return;
+    setImportLoading(true);
+    try {
+      const res = await fetch('/api/import-registrations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: currentAdminPassword, ...scanResult }),
+      });
+      const data = await res.json();
+      if (data.error) { setError(data.error); return; }
+      setSuccess(`✓ Importados ${data.created} registros en ${data.groups} grupos`);
+      setScanResult(null);
+      setScanOpen(false);
+      await loadParticipants();
+    } catch { setError('Error importando'); } finally { setImportLoading(false); }
+  };
+
   // Participants State
   const [allRegistrations, setAllRegistrations] = useState<RegistrationWithEvent[]>([]);
   const [matchDataByEvent, setMatchDataByEvent] = useState<Record<string, { selections: Record<string, string[]> }>>({});
@@ -2100,6 +2141,18 @@ export default function AdminClient({ events }: { events: Event[] }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
                 <h3 style={{ fontSize: '1.5rem', margin: 0 }}>Base de Participantes</h3>
                 <button
+                  onClick={() => setScanOpen(o => !o)}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+                    background: 'rgba(255,16,122,0.12)', border: '1px solid rgba(255,16,122,0.4)',
+                    color: 'var(--neon-pink)', padding: '0.4rem 1rem', borderRadius: '8px',
+                    cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700,
+                    boxShadow: '0 0 10px rgba(255,16,122,0.15)', transition: 'all 0.2s',
+                  }}
+                >
+                  📷 Escanear Cuaderno
+                </button>
+                <button
                   onClick={loadParticipants}
                   disabled={participantsLoading}
                   style={{ marginLeft: 'auto', background: 'none', border: '1px solid rgba(255,255,255,0.15)', color: 'var(--text-muted)', padding: '0.4rem 1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem' }}
@@ -2107,6 +2160,120 @@ export default function AdminClient({ events }: { events: Event[] }) {
                   {participantsLoading ? '⏳ Cargando...' : '🔄 Actualizar'}
                 </button>
               </div>
+
+              {/* ── Scanner de cuaderno ── */}
+              {scanOpen && (
+                <div className="glass-card" style={{ border: '1px solid rgba(255,16,122,0.25)', marginBottom: '2rem' }}>
+                  <h4 className="text-pink" style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>📷 Importar desde foto del cuaderno</h4>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
+                    Sacá una foto del cuaderno de Mariana y la IA va a extraer automáticamente los participantes y los grupos a los que pertenecen.
+                  </p>
+
+                  {/* Upload area */}
+                  {!scanResult && (
+                    <div
+                      onClick={() => scanInputRef.current?.click()}
+                      onDragOver={e => e.preventDefault()}
+                      onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleScanImage(f); }}
+                      style={{
+                        border: '2px dashed rgba(255,16,122,0.3)', borderRadius: '12px',
+                        padding: '2.5rem', textAlign: 'center', cursor: 'pointer',
+                        transition: 'all 0.2s', background: 'rgba(255,16,122,0.04)',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(255,16,122,0.6)')}
+                      onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,16,122,0.3)')}
+                    >
+                      {scanLoading ? (
+                        <div>
+                          <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>🔍</div>
+                          <p style={{ color: 'var(--neon-pink)', fontWeight: 700 }}>Analizando imagen con IA...</p>
+                          <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '0.5rem' }}>Esto puede tardar unos segundos</p>
+                        </div>
+                      ) : (
+                        <div>
+                          <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>📸</div>
+                          <p style={{ color: 'white', fontWeight: 600, marginBottom: '0.4rem' }}>Subí o arrastrá la foto del cuaderno</p>
+                          <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>JPG, PNG, WEBP — la IA extrae todo automáticamente</p>
+                        </div>
+                      )}
+                      <input
+                        ref={scanInputRef}
+                        type="file"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        onChange={e => { const f = e.target.files?.[0]; if (f) handleScanImage(f); }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Preview de resultados */}
+                  {scanResult && !scanLoading && (
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+                        <span style={{ color: '#39ff14', fontWeight: 700 }}>
+                          ✓ Detectados {scanResult.participantes.length} participante{scanResult.participantes.length !== 1 ? 's' : ''} en {scanResult.eventosDetectados.length} grupo{scanResult.eventosDetectados.length !== 1 ? 's' : ''}
+                        </span>
+                        <button
+                          onClick={() => { setScanResult(null); }}
+                          style={{ background: 'none', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-muted)', padding: '0.3rem 0.75rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem' }}
+                        >
+                          ↩ Nueva foto
+                        </button>
+                      </div>
+
+                      {/* Tabla de participantes detectados */}
+                      <div style={{ overflowX: 'auto', marginBottom: '1.25rem' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                              {['Nombre', 'Género', 'Teléfono', 'Bebida', 'Grupos'].map(h => (
+                                <th key={h} style={{ textAlign: 'left', padding: '0.5rem 0.75rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {scanResult.participantes.map((p, i) => (
+                              <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                <td style={{ padding: '0.6rem 0.75rem', color: 'white' }}>{p.firstName} {p.lastName}</td>
+                                <td style={{ padding: '0.6rem 0.75rem', color: p.gender === 'Mujer' ? 'var(--neon-pink)' : 'var(--neon-cyan)' }}>{p.gender}</td>
+                                <td style={{ padding: '0.6rem 0.75rem', color: 'var(--text-muted)' }}>{p.phone || '—'}</td>
+                                <td style={{ padding: '0.6rem 0.75rem', color: 'var(--text-muted)' }}>{p.selectedDrink || '—'}</td>
+                                <td style={{ padding: '0.6rem 0.75rem' }}>
+                                  {p.grupos.map(g => (
+                                    <span key={g} style={{ background: 'rgba(0,255,255,0.1)', color: 'var(--neon-cyan)', border: '1px solid rgba(0,255,255,0.2)', borderRadius: '4px', padding: '0.1rem 0.4rem', fontSize: '0.75rem', marginRight: '0.3rem' }}>
+                                      G{g}
+                                    </span>
+                                  ))}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <button
+                          onClick={handleImport}
+                          disabled={importLoading}
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+                            background: 'rgba(57,255,20,0.12)', border: '1px solid rgba(57,255,20,0.4)',
+                            color: '#39ff14', padding: '0.7rem 1.5rem', borderRadius: '10px',
+                            cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem',
+                            boxShadow: '0 0 12px rgba(57,255,20,0.2)', transition: 'all 0.2s',
+                            opacity: importLoading ? 0.6 : 1,
+                          }}
+                        >
+                          {importLoading ? '⏳ Importando...' : '✓ Confirmar e importar'}
+                        </button>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                          Se van a crear {scanResult.eventosDetectados.length} grupo{scanResult.eventosDetectados.length !== 1 ? 's' : ''} y {scanResult.participantes.reduce((a, p) => a + p.grupos.length, 0)} registros
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Stats */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
