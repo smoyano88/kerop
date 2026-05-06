@@ -1,31 +1,30 @@
 import { NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { verifyAdminPassword } from '@/lib/auth';
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
-const SYSTEM_PROMPT = `Eres un asistente que extrae datos de fotos de cuadernos de registro de eventos de speed dating.
-El cuaderno de Mariana tiene este formato por participante:
+const PROMPT = `Sos un asistente que extrae datos de fotos de cuadernos de registro de eventos de speed dating.
+El cuaderno tiene este formato por participante:
 - Nombre y apellido
 - Edad (años)
-- Género (Hombres / Mujeres)
+- Género (sección "Hombres" o "Mujeres")
 - Celular
 - Bebida
 - Grupo (número/s de evento/s en los que participó, pueden ser varios separados por coma)
-- A veces hay un número de evento/grupo en la parte superior de la página (ej: "Grupo 40", "NO: 13/05")
+- A veces hay un número de grupo en la parte superior (ej: "Grupo 40")
 - El rango de edad del evento puede aparecer (ej: "Mujeres: 25 a 45 años")
-- El tipo de evento puede inferirse del género de los participantes listados
 
-Devolvé ÚNICAMENTE un JSON válido con esta estructura, sin texto adicional:
+Devolvé ÚNICAMENTE un JSON válido con esta estructura, sin texto adicional ni markdown:
 {
   "participantes": [
     {
       "firstName": "string",
       "lastName": "string",
-      "gender": "Hombre" | "Mujer",
+      "gender": "Hombre o Mujer",
       "phone": "string o null",
       "selectedDrink": "string",
-      "age": number | null,
+      "age": number o null,
       "grupos": [number, ...]
     }
   ],
@@ -54,31 +53,16 @@ export async function POST(request: Request) {
 
     const bytes = await file.arrayBuffer();
     const base64 = Buffer.from(bytes).toString('base64');
-    const mediaType = (file.type || 'image/jpeg') as 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
+    const mimeType = (file.type || 'image/jpeg') as string;
 
-    const message = await client.messages.create({
-      model: 'claude-opus-4-7',
-      max_tokens: 2048,
-      system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: { type: 'base64', media_type: mediaType, data: base64 },
-            },
-            {
-              type: 'text',
-              text: 'Extraé todos los datos de participantes y eventos que veas en esta foto del cuaderno.',
-            },
-          ],
-        },
-      ],
-    });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
-    const raw = message.content[0].type === 'text' ? message.content[0].text : '';
-    // Strip markdown code blocks if present
+    const result = await model.generateContent([
+      PROMPT,
+      { inlineData: { data: base64, mimeType } },
+    ]);
+
+    const raw = result.response.text().trim();
     const jsonStr = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
     const data = JSON.parse(jsonStr);
 
