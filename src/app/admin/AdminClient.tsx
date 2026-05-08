@@ -2729,12 +2729,9 @@ export default function AdminClient({ events }: { events: Event[] }) {
                     <div key={ev.id} className="glass-card" style={{ padding: '1.25rem' }}>
                       {/* Header */}
                       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.6rem', marginBottom: '1rem', paddingBottom: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                        {ev.groupNumber != null && (
-                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--neon-cyan)', background: 'rgba(0,255,255,0.08)', border: '1px solid rgba(0,255,255,0.3)', padding: '0.2rem 0.55rem', borderRadius: '999px', letterSpacing: '0.5px' }}>
-                            G{ev.groupNumber}
-                          </span>
-                        )}
-                        <span style={{ color: 'white', fontWeight: 600, fontSize: '0.95rem' }}>{ev.type}</span>
+                        <span style={{ color: 'white', fontWeight: 600, fontSize: '0.95rem' }}>
+                          {ev.groupNumber != null ? `Grupo ${ev.groupNumber}` : ev.type}
+                        </span>
                         <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>·</span>
                         <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                           {format(new Date(ev.date), "dd/MM/yyyy", { locale: es })}
