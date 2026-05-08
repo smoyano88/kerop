@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kerop-v2';
+const CACHE_NAME = 'kerop-v3';
 const STATIC_ASSETS = [
   '/',
   '/eventos',
@@ -40,19 +40,33 @@ self.addEventListener('fetch', event => {
   // API calls: always network, never cache
   if (url.pathname.startsWith('/api/')) return;
 
-  // Static assets: cache-first
+  // Images and fonts: cache-first (no cambian seguido)
+  const isStaticAsset = url.pathname.match(/\.(png|jpg|jpeg|gif|svg|ico|webp|woff2?)$/);
+  if (isStaticAsset) {
+    event.respondWith(
+      caches.match(event.request).then(cached => {
+        if (cached) return cached;
+        return fetch(event.request).then(response => {
+          if (response && response.status === 200) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+          }
+          return response;
+        });
+      })
+    );
+    return;
+  }
+
+  // HTML y todo lo demás: network-first (siempre muestra la versión nueva)
   event.respondWith(
-    caches.match(event.request).then(cached => {
-      if (cached) return cached;
-      return fetch(event.request).then(response => {
-        // Only cache successful same-origin responses
-        if (response && response.status === 200) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-        }
-        return response;
-      });
-    })
+    fetch(event.request).then(response => {
+      if (response && response.status === 200) {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+      }
+      return response;
+    }).catch(() => caches.match(event.request))
   );
 });
 
