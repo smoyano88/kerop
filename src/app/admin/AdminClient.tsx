@@ -1280,11 +1280,11 @@ export default function AdminClient({ events }: { events: Event[] }) {
                     type="number"
                     name="groupNumber"
                     className="input-field"
-                    placeholder="Ej: 40"
+                    placeholder="Se asigna automáticamente"
                     min="1"
                   />
                   <p style={{ color: 'gray', fontSize: '0.75rem', marginTop: '0.3rem' }}>
-                    Opcional. Usado para mapear con el cuaderno de Mariana al escanear.
+                    Opcional. Si no se ingresa se asigna el siguiente número automáticamente.
                   </p>
                 </div>
                 <div>
@@ -2260,12 +2260,19 @@ export default function AdminClient({ events }: { events: Event[] }) {
 
         {/* ─── TAB: PARTICIPANTES ─── */}
         {activeTab === 'participants' && (() => {
-          // Agrupar por instagram (o nombre si no tiene)
+          // Agrupar por teléfono (si tiene), luego instagram, luego nombre
           const groups: Record<string, ParticipantGroup> = {};
           for (const reg of allRegistrations) {
-            const key = reg.instagram?.toLowerCase() || `${reg.firstName}_${reg.lastName}`.toLowerCase();
+            const key = reg.phone
+              ? `phone_${reg.phone}`
+              : reg.instagram?.toLowerCase()
+              ? `ig_${reg.instagram.toLowerCase()}`
+              : `name_${reg.firstName}_${reg.lastName}`.toLowerCase();
             if (!groups[key]) {
               groups[key] = { key, instagram: reg.instagram || null, firstName: reg.firstName, lastName: reg.lastName, phone: reg.phone || null, registrations: [] };
+            } else {
+              // Actualizar instagram si el grupo no lo tenía
+              if (!groups[key].instagram && reg.instagram) groups[key].instagram = reg.instagram;
             }
             groups[key].registrations.push(reg);
           }

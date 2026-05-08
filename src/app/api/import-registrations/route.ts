@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyAdminPassword } from '@/lib/auth';
+import { normalizePhone } from '@/lib/phone';
 
 interface ParticipanteInput {
   firstName: string;
@@ -100,7 +101,7 @@ export async function POST(request: Request) {
             firstName: p.firstName,
             lastName: p.lastName,
             gender: p.gender,
-            phone: p.phone ?? null,
+            phone: normalizePhone(p.phone),
             selectedDrink: p.selectedDrink || 'Sin especificar',
             eventId,
             paid: true,

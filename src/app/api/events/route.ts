@@ -62,11 +62,9 @@ export async function POST(request: Request) {
     // que el servidor (en UTC) interprete 21:00 como 21:00 UTC y termine mostrando 18:00 local.
     const eventDate = new Date(`${date}T${time}:00-03:00`);
 
-    const gn = groupNumber !== undefined && groupNumber !== null && groupNumber !== ''
-      ? parseInt(String(groupNumber), 10)
-      : null;
-
-    if (gn !== null) {
+    let gn: number;
+    if (groupNumber !== undefined && groupNumber !== null && groupNumber !== '') {
+      gn = parseInt(String(groupNumber), 10);
       const dup = await prisma.event.findUnique({ where: { groupNumber: gn } });
       if (dup) {
         return NextResponse.json(
@@ -74,6 +72,12 @@ export async function POST(request: Request) {
           { status: 400 },
         );
       }
+    } else {
+      const last = await prisma.event.findFirst({
+        where: { groupNumber: { not: null } },
+        orderBy: { groupNumber: 'desc' },
+      });
+      gn = (last?.groupNumber ?? 0) + 1;
     }
 
     const event = await prisma.event.create({

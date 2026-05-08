@@ -6,6 +6,7 @@ import {
   getPreferenceInitPoint,
 } from "@/lib/mercadopago";
 import { isReservationActive } from "@/lib/reservations";
+import { normalizePhone } from "@/lib/phone";
 
 export async function GET(request: Request) {
   try {
@@ -108,7 +109,7 @@ export async function POST(request: Request) {
             paid: false,
             paymentMethod,
             email: email || null,
-            phone: phone || null,
+            phone: normalizePhone(phone),
             instagram: instagram ? (instagram.startsWith('@') ? instagram : `@${instagram}`) : null,
           },
           include: { event: true },
