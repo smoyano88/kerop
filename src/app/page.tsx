@@ -16,23 +16,23 @@ export default async function Home() {
     .map(dia => ({ dia, label: DIA_LABELS[dia], value: settingsMap[`horario_${dia}`] ?? '' }))
     .filter(r => r.value && r.value !== 'cerrado');
   const alfajores = [
-    { name: 'Baileys', desc: 'Masa de cacao negro rellena de crema de Baileys, bañado en chocolate blanco. El favorito de la casa', img: '/img/alfajor-baileys.jpg' },
-    { name: 'Banana Split', desc: 'Masa de vainilla, dulce de leche y trozos de chocolate con cobertura de chocolate blanco', img: '/img/alfajor-banana-split.jpg' },
-    { name: 'Trufa de Chocolate al Ron', desc: 'Puro cacao intenso con un toque de ron. Bañado en chocolate negro con granas', img: '/img/alfajor-trufa-ron.jpg' },
+    { name: 'Banana Split', desc: 'Tapas suaves de vainilla con dulce de leche cremoso y bañado en chocolate blanco. La versión Kerop del clásico de toda la vida', img: '/img/alfajores-1.jpg' },
+    { name: 'Trufa de Chocolate al Ron', desc: 'Masa intensa de cacao con relleno tipo trufa y toque de ron. Bañado en chocolate negro con granas', img: '/img/alfajores-2.jpg' },
+    { name: 'Baileys', desc: 'Masa de cacao oscuro rellena de crema de Baileys y bañado en chocolate blanco. El favorito de la casa', img: '/img/alfajores-3.jpg' },
+    { name: 'Caramelo Salado', desc: 'Doble masa de chocolate con un corazón de caramelo salado bien generoso, bañado en chocolate semiamargo', img: '/img/alfajores-4.jpg' },
   ];
 
   const salados = [
-    { name: 'Focaccia Vegana', desc: 'Pan focaccia artesanal con tomates secos, rúcula y cebolla caramelizada', img: '/img/focaccia-vegana.jpg' },
-    { name: 'Hummus & Focaccia', desc: 'Hummus casero con pimentón y bastones de focaccia crujiente para dippear', img: '/img/hummus-focaccia.jpg' },
-    { name: 'Tarta de Choclo', desc: 'Tarta de choclo, cebolla y salsa blanca vegana. Masa casera crocante', img: '/img/tarta-choclo.jpg' },
-    { name: 'Carrot Cake', desc: 'Torta de zanahoria vegana con frosting de queso crema vegetal y nueces', img: '/img/carrot-cake.jpg' },
-    { name: 'Semifrío de Maracuyá', desc: 'Postre vegano y sin azúcar agregada. Cremoso con pasión tropical', img: '/img/semifrio-maracuya.jpg' },
+    { name: 'Sándwich de Palta', desc: 'Pan árabe artesanal recién horneado con palta machacada, queso fundido y una pizca de morrón. Acompaña perfecto con limonada', img: '/img/cocina-autor-1.jpg' },
+    { name: 'Tarta de Puerros', desc: 'Tarta individual de masa quebrada con relleno cremoso de puerros y queso gratinado al horno', img: '/img/cocina-autor-2.jpg' },
+    { name: 'Sándwich Jamón & Cheddar', desc: 'Pan brioche con semillas, fetas generosas de jamón cocido y cheddar derretido. Clásico bien hecho', img: '/img/cocina-autor-3.jpg' },
+    { name: 'Focaccia con Jamón Crudo', desc: 'Focaccia casera con semillas, jamón crudo y rúcula fresca. Ideal para acompañar el café de la tarde', img: '/img/cocina-autor-4.jpg' },
   ];
 
   const bebidas = [
-    { name: 'Café de Especialidad', desc: 'Latte Art, Flat White o Espresso con granos seleccionados', img: '/img/drink-coffee.png' },
-    { name: 'Jugos Naturales', desc: 'Jugo de naranja exprimido o Kombuchas para acompañar', img: '/img/drink-alfajor.png' },
-    { name: 'Coctelería & Tragos', desc: 'Tragos de autor con maracuyá y clásicos para la tarde', img: '/img/drink-passion.png' },
+    { name: 'Café de Especialidad', desc: 'Espresso, Flat White o Latte con granos seleccionados y latte art en cada taza', img: '/img/cafe-especialidad.jpg' },
+    { name: 'Jugos Naturales', desc: 'Jugo de naranja recién exprimido y limonadas frescas para acompañar', img: '/img/jugos-naturales.jpg' },
+    { name: 'Coctelería & Tragos', desc: 'Tragos de autor y clásicos preparados en barra. Ideales para la tarde y el after', img: '/img/tragos.jpg' },
   ];
 
   return (
@@ -53,7 +53,7 @@ export default async function Home() {
             {/* Logo */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginBottom: '2rem' }}>
               <div style={{ position: 'relative' }}>
-                <Image src="/img/logo.png" alt="Kerop logo" width={80} height={80} style={{ borderRadius: '50%' }} />
+                <Image src="/img/kerop-blacklight.png" alt="Kerop logo" width={90} height={90} style={{ objectFit: 'contain' }} />
                 {/* Avatar Mariana sutil destacado */}
                 <div style={{ position: 'absolute', bottom: '-8px', right: '-12px', width: '40px', height: '40px', borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--neon-pink)', boxShadow: '0 4px 10px rgba(0,0,0,0.5)', zIndex: 2 }}>
                   <Image src="/img/mariana-speed.png" alt="Host" fill style={{ objectFit: 'cover' }} />
@@ -104,23 +104,29 @@ export default async function Home() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '4rem', alignItems: 'center' }}>
             <div className="reveal">
               <p className="text-pink" style={{ textTransform: 'uppercase', letterSpacing: '4px', fontSize: '0.85rem', marginBottom: '0.75rem' }}>Quiénes Somos</p>
-              <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', marginBottom: '1.5rem' }}>El refugio de Mariana ☕🖤</h2>
+              <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', marginBottom: '1.5rem' }}>Kerop Café & Tattoo</h2>
               <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', lineHeight: 1.9, marginBottom: '1.25rem' }}>
-                Kerop nació en el corazón de Ciudad Vieja como un espacio donde el café de especialidad, la pastelería vegana y el arte del tatuaje conviven sin pedirse permiso.
+                En Kerop Café & Tattoo, el arte se vive, se respira y, sobre todo, se saborea. Ubicados en el alma de la Ciudad Vieja de Montevideo, somos un concept store moderno donde la cultura del tatuaje y la gastronomía de especialidad se fusionan para crear una experiencia fuera de lo común.
               </p>
+
+              <h3 className="text-pink" style={{ fontSize: '1.15rem', marginTop: '1.75rem', marginBottom: '0.75rem' }}>El Arte de la Tinta y el Sabor</h3>
               <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', lineHeight: 1.9, marginBottom: '1.25rem' }}>
-                Cada alfajor que servimos está hecho a mano el mismo día. Cada tatuaje que sale de acá lleva la firma de artistas residentes que eligieron este lugar como su estudio. Cada speed dating es una excusa para que la ciudad se encuentre.
+                Nuestra identidad nace de la pasión por los detalles. En nuestro estudio, un equipo de artistas seleccionados transforma ideas en piezas únicas sobre la piel, trabajando con la misma precisión que ponemos en nuestra barra. La creatividad no se queda solo en las agujas: se traslada a nuestra cocina, donde creamos repostería de autora con un sello inconfundible.
               </p>
+
+              <h3 className="text-pink" style={{ fontSize: '1.15rem', marginTop: '1.75rem', marginBottom: '0.75rem' }}>Nuestros Alfajores de Autor</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', lineHeight: 1.9, marginBottom: '1.25rem' }}>
+                Si hay algo que nos define, es nuestra obsesión por el alfajor perfecto. No hacemos alfajores convencionales: diseñamos alfajores de autor que son verdaderas piezas de diseño gastronómico. Masas artesanales, rellenos premium y combinaciones de texturas que sorprenden — cada unidad pensada para maridar con nuestro café de especialidad.
+              </p>
+
+              <h3 className="text-pink" style={{ fontSize: '1.15rem', marginTop: '1.75rem', marginBottom: '0.75rem' }}>Un Espacio Moderno y Urbano</h3>
               <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', lineHeight: 1.9 }}>
-                Somos un café, somos un estudio, somos una casa. Te esperamos.
-              </p>
-              <p style={{ color: 'var(--neon-pink)', fontSize: '0.85rem', marginTop: '2rem', fontStyle: 'italic', opacity: 0.6 }}>
-                * Texto provisorio — Mariana lo va a actualizar.
+                Funcionamos con un sistema de autoservicio dinámico y relajado, ideal para quienes buscan un ambiente moderno donde cada uno marca su propio ritmo. Brunch rápido, vitrina con opciones inclusivas y veganas, o tu próximo tatuaje — un punto de encuentro para mentes inquietas y paladares exigentes. Vení por el café, quedate por el arte y volvé siempre por ese alfajor que no te vas a poder sacar de la cabeza.
               </p>
             </div>
-            <div className="reveal reveal-delay-2" style={{ position: 'relative', height: '420px', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid rgba(255,16,122,0.2)' }}>
-              <Image src="/img/kerop-mural.jpg" alt="Kerop por dentro" fill style={{ objectFit: 'cover' }} />
-              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.5) 100%)' }} />
+            <div className="reveal reveal-delay-2" style={{ position: 'sticky', top: '2rem', height: '560px', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid rgba(255,16,122,0.2)' }}>
+              <Image src="/img/arte-kerop.jpg" alt="Arte Kerop" fill style={{ objectFit: 'cover' }} />
+              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.4) 100%)' }} />
             </div>
           </div>
         </div>
@@ -160,8 +166,8 @@ export default async function Home() {
         <div className="container" style={{ position: 'relative', zIndex: 1 }}>
           <div className="reveal" style={{ marginBottom: '3.5rem' }}>
             <p className="text-green" style={{ textTransform: 'uppercase', letterSpacing: '4px', fontSize: '0.85rem', marginBottom: '0.75rem' }}>Cocina de Autor</p>
-            <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)' }}>Vegano & Salados 🌱</h2>
-            <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>Opciones que cuidan el planeta sin resignar sabor.</p>
+            <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)' }}>Brunch & Salados</h2>
+            <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>Sándwiches y tartas hechas en casa, con panes artesanales del día.</p>
           </div>
           <div className="grid-3">
             {salados.map((item, i) => (
@@ -244,7 +250,7 @@ export default async function Home() {
       <footer style={{ borderTop: '1px solid rgba(255,255,255,0.07)', padding: '2.5rem 0' }}>
         <div className="container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <Image src="/img/logo.png" alt="Kerop" width={36} height={36} style={{ borderRadius: '50%' }} />
+            <Image src="/img/kerop-blacklight.png" alt="Kerop" width={42} height={42} style={{ objectFit: 'contain' }} />
             <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>© {new Date().getFullYear()} Kerop. Pérez Castellano 1495, Ciudad Vieja.</span>
           </div>
           <Link href="/admin" style={{ color: 'var(--text-muted)', fontSize: '0.85rem', opacity: 0.5 }}>

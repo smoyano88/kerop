@@ -17,7 +17,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const { name, specialty, bio, phone, instagram, photoUrl, order, password } = await request.json();
+    const { name, specialty, bio, phone, instagram, photoUrl, gallery, order, password } = await request.json();
     if (!(await verifyAdminPassword(password))) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Nombre, especialidad y teléfono son obligatorios' }, { status: 400 });
     }
     const tatuador = await prisma.tatuador.create({
-      data: { name: name.trim(), specialty: specialty.trim(), bio: bio?.trim() ?? '', phone: phone.trim(), instagram: instagram?.trim() ?? '', photoUrl: photoUrl?.trim() ?? '', order: order ?? 0 },
+      data: { name: name.trim(), specialty: specialty.trim(), bio: bio?.trim() ?? '', phone: phone.trim(), instagram: instagram?.trim() ?? '', photoUrl: photoUrl?.trim() ?? '', gallery: Array.isArray(gallery) ? gallery : [], order: order ?? 0 },
       include: { contacts: true },
     });
     return NextResponse.json(tatuador);
@@ -36,13 +36,16 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const { id, name, specialty, bio, phone, instagram, photoUrl, order, active, password } = await request.json();
+    const { id, name, specialty, bio, phone, instagram, photoUrl, gallery, order, active, password } = await request.json();
     if (!(await verifyAdminPassword(password))) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
     const tatuador = await prisma.tatuador.update({
       where: { id },
-      data: { name, specialty, bio, phone, instagram, photoUrl, order, active },
+      data: {
+        name, specialty, bio, phone, instagram, photoUrl, order, active,
+        ...(gallery !== undefined ? { gallery: Array.isArray(gallery) ? gallery : [] } : {}),
+      },
       include: { contacts: true },
     });
     return NextResponse.json(tatuador);

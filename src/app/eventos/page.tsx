@@ -33,7 +33,7 @@ export default async function EventosPage() {
 
         <div className="container" style={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
-            <Image src="/img/logo.png" alt="Kerop" width={56} height={56} style={{ borderRadius: '50%' }} />
+            <Image src="/img/kerop-blacklight.png" alt="Kerop" width={64} height={64} style={{ objectFit: 'contain' }} />
           </div>
           <p className="text-pink" style={{ textTransform: 'uppercase', letterSpacing: '5px', fontSize: '0.75rem', marginBottom: '0.5rem' }}>Evento Especial</p>
           <h1 style={{ fontSize: 'clamp(2.2rem, 5vw, 3.5rem)', marginBottom: '0.75rem', lineHeight: 1.1 }}>
@@ -69,16 +69,18 @@ export default async function EventosPage() {
         
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '2rem' }}>
           {[
-            { num: '1', title: 'Registro y Trago', desc: 'Llegás a Kerop, te asignamos tu número de participante y te servís tu trago de autor incluido para romper el hielo.', icon: '🍹' },
-            { num: '2', title: '7 Minutos', desc: 'Te sentás en tu mesa. Tenés exactamente 7 minutos cronometrados para hablar y conocer a la persona que tenés enfrente.', icon: '⏱️' },
-            { num: '3', title: 'Rotación', desc: 'Al sonar el silbato de Mariana, hacés tus apuntes secretos en la planilla, te levantás y rotás a la siguiente mesa.', icon: '🔄' },
-            { num: '4', title: 'El Match', desc: 'Al final nos entregás la tarjeta. Si ambos marcaron "Sí" en secreto, ¡hay Match! Los pondremos en contacto al día siguiente.', icon: '💘' },
+            { num: '1', title: 'Llegás a Kerop', desc: 'Te recibe Mariana, anfitriona del evento. Te asigna tu número de participante y te explica el cronómetro y la dinámica de la noche.', img: '/img/speed-dating-2.jpg' },
+            { num: '2', title: 'Trago + Snacks', desc: 'Tu entrada incluye una bebida (cerveza, copa de vino o trago de autor) y snacks para acompañar y romper el hielo.', img: '/img/speed-dating-3.jpg' },
+            { num: '3', title: '7 Minutos por Cita', desc: 'Te sentás en tu mesa frente a tu próxima cita. Siete minutos cronometrados para dejar una buena impresión, escuchar y conocer a la persona del otro lado.', img: '/img/speed-dating-1.jpg' },
+            { num: '4', title: 'Llená la Ficha', desc: 'En tu tarjeta secreta marcás un comentario y un sí o un no por cada persona. Si hay match recíproco, los ponemos en contacto a la medianoche.', img: '/img/speed-dating-4.jpg' },
           ].map((step, idx) => (
             <div key={idx} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,16,122,0.1)', borderRadius: '12px', padding: '1.5rem', position: 'relative', transition: 'transform 0.3s', cursor: 'default' }}>
-              <div style={{ position: 'absolute', top: '-15px', left: '1.5rem', background: 'var(--neon-pink)', color: 'black', width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', fontWeight: 800, fontSize: '1rem' }}>
+              <div style={{ position: 'absolute', top: '-15px', left: '1.5rem', background: 'var(--neon-pink)', color: 'black', width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', fontWeight: 800, fontSize: '1rem', zIndex: 1 }}>
                 {step.num}
               </div>
-              <div style={{ fontSize: '2.5rem', marginBottom: '1rem', marginTop: '0.5rem' }}>{step.icon}</div>
+              <div style={{ position: 'relative', width: '100%', aspectRatio: '1 / 1', borderRadius: '10px', overflow: 'hidden', marginBottom: '1rem', marginTop: '0.5rem', background: 'rgba(255,255,255,0.03)' }}>
+                <Image src={step.img} alt={step.title} fill style={{ objectFit: 'cover' }} />
+              </div>
               <h3 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '1px' }}>{step.title}</h3>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: 1.6 }}>{step.desc}</p>
             </div>

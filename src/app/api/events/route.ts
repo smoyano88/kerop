@@ -47,6 +47,7 @@ export async function POST(request: Request) {
       password,
       mpEnabled,
       price,
+      groupNumber,
     } = body;
 
     // Simple Admin Auth
@@ -58,6 +59,20 @@ export async function POST(request: Request) {
     // que el servidor (en UTC) interprete 21:00 como 21:00 UTC y termine mostrando 18:00 local.
     const eventDate = new Date(`${date}T${time}:00-03:00`);
 
+    const gn = groupNumber !== undefined && groupNumber !== null && groupNumber !== ''
+      ? parseInt(String(groupNumber), 10)
+      : null;
+
+    if (gn !== null) {
+      const dup = await prisma.event.findUnique({ where: { groupNumber: gn } });
+      if (dup) {
+        return NextResponse.json(
+          { error: `Ya existe un evento con número de grupo ${gn}` },
+          { status: 400 },
+        );
+      }
+    }
+
     const event = await prisma.event.create({
       data: {
         type,
@@ -67,6 +82,7 @@ export async function POST(request: Request) {
         spotsPerGender: parseInt(spotsPerGender || "8", 10),
         mpEnabled: mpEnabled !== false, // Defaults to true
         price: parseInt(price, 10) || 850,
+        groupNumber: gn,
       },
     });
 
