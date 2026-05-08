@@ -35,6 +35,7 @@ interface RegistrationWithEvent extends Registration {
     type: string;
     date: string;
     ageRange: string;
+    groupNumber?: number | null;
   } | null;
 }
 
@@ -2518,7 +2519,9 @@ export default function AdminClient({ events }: { events: Event[] }) {
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
                                       <div>
                                         <div style={{ fontWeight: 600, color: 'white' }}>
-                                          {reg.event?.type ?? reg.eventType ?? <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Evento eliminado</span>}
+                                          {reg.event
+                                            ? (reg.event.groupNumber != null ? `Grupo ${reg.event.groupNumber}` : reg.event.type)
+                                            : reg.eventType ?? <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Evento eliminado</span>}
                                           {!reg.event && (reg.eventType || reg.eventDate) && <span style={{ marginLeft: '0.4rem', fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>(eliminado)</span>}
                                         </div>
                                         <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
