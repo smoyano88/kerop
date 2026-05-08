@@ -14,7 +14,23 @@
       "Bash(curl -s -X POST http://localhost:3000/api/admin/password -H 'Content-Type: application/json' -d '{\"password\": \"Kerop2024\"}')",
       "Bash(psql 'postgresql://neondb_owner:npg_dzN0fjMk3UqT@ep-morning-silence-anin7enu.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require' -c 'SELECT key, value FROM \"Setting\";')",
       "Bash(curl -s -X POST http://localhost:3000/api/admin/password -H 'Content-Type: application/json' -d '{\"password\": \"vbOkOnly1\"}')",
-      "Bash(curl -s -X DELETE 'http://localhost:3000/api/registrations/5ec57f0c-8503-48c0-82f4-71cfefc478cf?pwd=vbOkOnly1' -w '\\\\nHTTP_STATUS:%{http_code}')"
+      "Bash(curl -s -X DELETE 'http://localhost:3000/api/registrations/5ec57f0c-8503-48c0-82f4-71cfefc478cf?pwd=vbOkOnly1' -w '\\\\nHTTP_STATUS:%{http_code}')",
+      "Bash(ls -la ~/Descargas/kerop/ 2>&1 | head -60)",
+      "Read(//Users/sergio/Descargas/**)",
+      "Bash(ls ~/Downloads/ 2>&1 | grep -i kerop; ls ~/Descargas 2>&1 | head -20; ls ~/ | grep -i -E \"descarga|download\")",
+      "Read(//Users/sergio/Downloads/**)",
+      "Read(//Users/sergio/**)",
+      "Bash(mkdir -p /Users/sergio/Documents/Personales/Proyectos/kerop-app/public/img/new)",
+      "Bash(cp '/Users/sergio/Downloads/Kerop imagenes/Logo Kerop1.jpeg' /Users/sergio/Documents/Personales/Proyectos/kerop-app/public/img/new/logo-kerop-1.jpg)",
+      "Bash(cp '/Users/sergio/Downloads/Kerop imagenes/Logo Kerop2.jpeg' /Users/sergio/Documents/Personales/Proyectos/kerop-app/public/img/new/logo-kerop-2.jpg)",
+      "Bash(cp '/Users/sergio/Downloads/Kerop imagenes/Kerop blacklighr.png' /Users/sergio/Documents/Personales/Proyectos/kerop-app/public/img/new/kerop-blacklight.png)",
+      "Bash(cp '/Users/sergio/Downloads/Kerop imagenes/Arte Kerop.jpeg' /Users/sergio/Documents/Personales/Proyectos/kerop-app/public/img/new/arte-kerop.jpg)",
+      "Bash(sips -s format jpeg \"/Users/sergio/Downloads/Kerop imagenes/Marcos trabajo3.HEIC\" --out \"/Users/sergio/Documents/Personales/Proyectos/kerop-app/public/img/new/marcos-trabajo-3.jpg\")",
+      "Bash(mv new/*.* .)",
+      "Bash(rmdir new *)",
+      "Bash(cp /tmp/seed-tatuadores.ts /Users/sergio/Documents/Personales/Proyectos/kerop-app/seed-tatuadores.ts)",
+      "Bash(npx tsx *)",
+      "Bash(npx ts-node *)"
     ]
   }
 }

@@ -68,6 +68,7 @@ model Tatuador {
   phone        String
   instagram    String            @default("")
   photoUrl     String            @default("")
+  gallery      Json              @default("[]")
   order        Int               @default(0)
   active       Boolean           @default(true)
   contacts     TatuadorContact[]

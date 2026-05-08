@@ -103,8 +103,8 @@ export async function POST(request: Request) {
             phone: p.phone ?? null,
             selectedDrink: p.selectedDrink || 'Sin especificar',
             eventId,
-            paid: false,
-            attended: true, // si está en el cuaderno, asistió
+            paid: true,
+            attended: true,
           },
         });
         created++;

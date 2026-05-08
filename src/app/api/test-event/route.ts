@@ -64,6 +64,14 @@ export async function POST(req: NextRequest) {
   tomorrow.setDate(tomorrow.getDate() + 1);
   tomorrow.setHours(20, 0, 0, 0);
 
+  // Auto-asignar el siguiente groupNumber disponible
+  const lastWithGroup = await prisma.event.findFirst({
+    where: { groupNumber: { not: null } },
+    orderBy: { groupNumber: 'desc' },
+    select: { groupNumber: true },
+  });
+  const nextGroupNumber = (lastWithGroup?.groupNumber ?? 0) + 1;
+
   const event = await prisma.event.create({
     data: {
       type,
@@ -73,6 +81,7 @@ export async function POST(req: NextRequest) {
       spotsPerGender,
       mpEnabled: true,
       price: 850,
+      groupNumber: nextGroupNumber,
     },
   });
 
@@ -106,6 +115,7 @@ export async function POST(req: NextRequest) {
     type,
     spotsPerGender,
     totalParticipants: registrations.length,
-    message: `✅ Evento creado con ${registrations.length} participantes (${mpCount} MP, ${trCount} transferencia — todos pagos)`,
+    groupNumber: nextGroupNumber,
+    message: `✅ Evento G${nextGroupNumber} creado con ${registrations.length} participantes (${mpCount} MP, ${trCount} transferencia — todos pagos)`,
   });
 }

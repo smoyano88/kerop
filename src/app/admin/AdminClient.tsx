@@ -56,6 +56,7 @@ interface Event {
   spotsPerGender: number;
   mpEnabled: boolean;
   price: number;
+  groupNumber?: number | null;
   registrations: Registration[];
 }
 
@@ -67,7 +68,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
   const [eventList, setEventList] = useState<Event[]>(events);
   
   // Navigation State
-  const [activeTab, setActiveTab] = useState<'events' | 'create' | 'matches' | 'participants' | 'drinks' | 'tatuadores' | 'contenido' | 'password'>('events');
+  const [activeTab, setActiveTab] = useState<'events' | 'create' | 'matches' | 'participants' | 'historico' | 'drinks' | 'tatuadores' | 'contenido' | 'password'>('events');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Tatuadores State
@@ -135,7 +136,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
           ...Object.fromEntries(DIAS.map(dia => [`horario_${dia}`, horarios[dia].open ? `${horarios[dia].from} – ${horarios[dia].to}` : 'cerrado'])),
         }),
       });
-      setSuccess('Horarios actualizados');
+      showSuccess('✅ Horarios actualizados');
     } catch { setError('Error guardando horarios'); } finally { setHorariosLoading(false); }
   };
 
@@ -150,7 +151,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
       setMenuForm({ category: 'cafe', name: '', description: '', price: '', imageUrl: '', order: 0 });
       setMenuEditId(null);
       await loadContenido();
-      setSuccess(menuEditId ? 'Ítem actualizado' : 'Ítem agregado');
+      showSuccess(menuEditId ? '✅ Ítem actualizado' : '✅ Ítem agregado');
     } catch { setError('Error guardando ítem'); } finally { setMenuLoading(false); }
   };
 
@@ -196,7 +197,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
       });
       const data = await res.json();
       if (data.error) { setError(data.error); return; }
-      setSuccess(`✓ Importados ${data.created} registros en ${data.groups} grupos`);
+      showSuccess(`✅ Importados ${data.created} registros en ${data.groups} grupos`);
       setScanResult(null);
       setScanOpen(false);
       await loadParticipants();
@@ -299,7 +300,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
 
   // Auto-load participantes al entrar al tab (después de declarar isAuthenticated)
   useEffect(() => {
-    if (activeTab === 'participants' && isAuthenticated && allRegistrations.length === 0 && !participantsLoading) {
+    if ((activeTab === 'participants' || activeTab === 'historico') && isAuthenticated && allRegistrations.length === 0 && !participantsLoading) {
       loadParticipants();
     }
   }, [activeTab, isAuthenticated]);
@@ -330,6 +331,48 @@ export default function AdminClient({ events }: { events: Event[] }) {
   /* ── Change Password State ── */
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  /* ── Histórico State ── */
+  const [historicoSearch, setHistoricoSearch] = useState('');
+  const [historialSubtab, setHistorialSubtab] = useState<'eventos' | 'participantes'>('eventos');
+
+  /* ── Wipe DB State ── */
+  const [wipeConfirmText, setWipeConfirmText] = useState('');
+  const [wipePasswordInput, setWipePasswordInput] = useState('');
+  const [wipeLoading, setWipeLoading] = useState(false);
+
+  const handleWipeDatabase = async () => {
+    if (wipeConfirmText !== 'BORRAR TODO') {
+      setError('Tenés que escribir exactamente: BORRAR TODO');
+      return;
+    }
+    if (!wipePasswordInput) {
+      setError('Reingresá la contraseña de admin para confirmar');
+      return;
+    }
+    setWipeLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/admin/wipe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: wipePasswordInput, confirm: wipeConfirmText }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Error al limpiar base de datos');
+      } else {
+        showSuccess(`✅ Base limpiada. Eliminados: ${data.deleted.events} eventos, ${data.deleted.registrations} registros, ${data.deleted.matchData} matches.`);
+        setWipeConfirmText('');
+        setWipePasswordInput('');
+        await reloadEvents();
+      }
+    } catch {
+      setError('Error al limpiar base de datos');
+    } finally {
+      setWipeLoading(false);
+    }
+  };
 
   /* ── Create Event Form State ── */
   const [createEventType, setCreateEventType] = useState('');
@@ -690,6 +733,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
       mpEnabled: formData.get('mpEnabled') === 'on',
       price: formData.get('price'),
       drinksAvailable: selectedDrinks.join(', '),
+      groupNumber: formData.get('groupNumber') || null,
       password: currentAdminPassword,
     };
 
@@ -809,9 +853,9 @@ export default function AdminClient({ events }: { events: Event[] }) {
             <span className="admin-nav-icon">💘</span>
             <span className="admin-nav-label">Matches</span>
           </div>
-          <div className={`admin-nav-item ${activeTab === 'participants' ? 'active' : ''}`} onClick={() => { setActiveTab('participants'); loadParticipants(); }}>
-            <span className="admin-nav-icon">👥</span>
-            <span className="admin-nav-label">Participantes</span>
+          <div className={`admin-nav-item ${activeTab === 'participants' || activeTab === 'historico' ? 'active' : ''}`} onClick={() => { setActiveTab(historialSubtab === 'participantes' ? 'participants' : 'historico'); loadParticipants(); }}>
+            <span className="admin-nav-icon">📚</span>
+            <span className="admin-nav-label">Historial</span>
           </div>
           <div className={`admin-nav-item ${activeTab === 'drinks' ? 'active' : ''}`} onClick={() => setActiveTab('drinks')}>
             <span className="admin-nav-icon">🍹</span>
@@ -827,7 +871,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
           </div>
           <div className={`admin-nav-item ${activeTab === 'password' ? 'active' : ''}`} onClick={() => setActiveTab('password')}>
             <span className="admin-nav-icon">🔑</span>
-            <span className="admin-nav-label">Cambiar Contraseña</span>
+            <span className="admin-nav-label">Configuración</span>
           </div>
         </div>
         
@@ -857,9 +901,9 @@ export default function AdminClient({ events }: { events: Event[] }) {
             <span className="admin-nav-icon">💘</span>
             <span>Matches</span>
           </div>
-          <div className={`admin-mobile-nav-item ${activeTab === 'participants' ? 'active' : ''}`} onClick={() => { setActiveTab('participants'); loadParticipants(); }}>
-            <span className="admin-nav-icon">👥</span>
-            <span>Participantes</span>
+          <div className={`admin-mobile-nav-item ${activeTab === 'participants' || activeTab === 'historico' ? 'active' : ''}`} onClick={() => { setActiveTab(historialSubtab === 'participantes' ? 'participants' : 'historico'); loadParticipants(); }}>
+            <span className="admin-nav-icon">📚</span>
+            <span>Historial</span>
           </div>
           <div className={`admin-mobile-nav-item ${activeTab === 'drinks' ? 'active' : ''}`} onClick={() => setActiveTab('drinks')}>
             <span className="admin-nav-icon">🍹</span>
@@ -874,8 +918,8 @@ export default function AdminClient({ events }: { events: Event[] }) {
             <span>Contenido</span>
           </div>
           <div className={`admin-mobile-nav-item ${activeTab === 'password' ? 'active' : ''}`} onClick={() => setActiveTab('password')}>
-            <span className="admin-nav-icon">🔑</span>
-            <span>Clave</span>
+            <span className="admin-nav-icon">⚙️</span>
+            <span>Config</span>
           </div>
         </div>
       </div>
@@ -908,7 +952,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
                 padding: '0.2rem 0.75rem',
                 fontSize: '0.85rem',
                 fontWeight: 600
-              }}>{eventList.length}</span>
+              }}>{eventList.filter(ev => new Date(ev.date) >= new Date()).length}</span>
               <button
                 onClick={() => reloadEvents()}
                 style={{ marginLeft: 'auto', background: 'none', border: '1px solid rgba(255,255,255,0.15)', color: 'var(--text-muted)', padding: '0.4rem 1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', transition: 'all 0.2s' }}
@@ -918,15 +962,15 @@ export default function AdminClient({ events }: { events: Event[] }) {
               </button>
             </div>
 
-            {eventList.length === 0 ? (
+            {eventList.filter(ev => new Date(ev.date) >= new Date()).length === 0 ? (
               <div className="glass-card" style={{ textAlign: 'center', padding: '4rem 2rem', color: 'var(--text-muted)' }}>
                 <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📅</div>
-                <p>No hay eventos creados aún. Usá "Agregar Evento" para crear el primero.</p>
+                <p>No hay eventos futuros. Usá "Agregar Evento" para crear el primero.</p>
                 <button onClick={() => setActiveTab('create')} className="btn btn-outline" style={{ marginTop: '1.5rem', padding: '0.5rem 1.5rem' }}>+ Agregar Evento</button>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                {eventList.map((ev) => {
+                {eventList.filter(ev => new Date(ev.date) >= new Date()).map((ev) => {
                   const total = (ev.registrations || []).length;
                   const isExpanded = expandedEvent === ev.id;
                   const drinksList = (ev.drinksAvailable || '').split(',').map(d => d.trim()).filter(Boolean);
@@ -949,7 +993,14 @@ export default function AdminClient({ events }: { events: Event[] }) {
                       </button>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', paddingRight: '4.5rem' }}>
                         <div>
-                          <h4 style={{ fontSize: '1.3rem', marginBottom: '0.3rem' }}>{ev.type}</h4>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.3rem', flexWrap: 'wrap' }}>
+                            <h4 style={{ fontSize: '1.3rem', margin: 0 }}>{ev.type}</h4>
+                            {ev.groupNumber != null && (
+                              <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--neon-cyan)', background: 'rgba(0,255,255,0.08)', border: '1px solid rgba(0,255,255,0.3)', padding: '0.15rem 0.5rem', borderRadius: '999px', letterSpacing: '0.5px' }}>
+                                G{ev.groupNumber}
+                              </span>
+                            )}
+                          </div>
                           <p style={{ color: 'var(--neon-cyan)', fontSize: '0.95rem' }}>
                             {format(new Date(ev.date), "EEEE d 'de' MMMM yyyy 'a las' HH:mm 'hs'", { locale: es })}
                           </p>
@@ -1221,7 +1272,20 @@ export default function AdminClient({ events }: { events: Event[] }) {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label className="input-label">N° de Grupo (cuaderno)</label>
+                  <input
+                    type="number"
+                    name="groupNumber"
+                    className="input-field"
+                    placeholder="Ej: 40"
+                    min="1"
+                  />
+                  <p style={{ color: 'gray', fontSize: '0.75rem', marginTop: '0.3rem' }}>
+                    Opcional. Usado para mapear con el cuaderno de Mariana al escanear.
+                  </p>
+                </div>
                 <div>
                   <label className="input-label">Precio del Evento (UYU)</label>
                   <input type="number" name="price" required className="input-field" defaultValue="20" min="10" />
@@ -2047,8 +2111,8 @@ export default function AdminClient({ events }: { events: Event[] }) {
         {/* ─── TAB: CAMBIAR CONTRASEÑA ─── */}
         {activeTab === 'password' && (
           <div className="glass-card" style={{ border: '1px solid rgba(0,255,255,0.2)', maxWidth: '500px', margin: '0 auto' }}>
-            <h3 className="text-cyan" style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>Cambiar Contraseña</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '2rem' }}>Actualizá la contraseña de acceso al panel de administración.</p>
+            <h3 className="text-cyan" style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>Configuración</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '2rem' }}>Actualizá la contraseña de acceso y gestioná opciones avanzadas del sistema.</p>
 
             <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               <div>
@@ -2099,15 +2163,96 @@ export default function AdminClient({ events }: { events: Event[] }) {
               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1rem', lineHeight: 1.5 }}>
                 Recibí avisos en este dispositivo cuando alguien se registre o pague un evento. Tenés que darle permisos al navegador si te lo pide.
               </p>
-              <button 
-                onClick={subscribeToPush} 
+              <button
+                onClick={subscribeToPush}
                 disabled={loading}
-                className="btn btn-outline" 
+                className="btn btn-outline"
                 style={{ width: '100%', borderColor: 'var(--neon-cyan)', color: 'var(--neon-cyan)' }}
               >
                 {loading ? 'Procesando...' : '🔔 Activar notificaciones acá'}
               </button>
             </div>
+
+            {/* ── Zona Peligrosa ── */}
+            <div style={{ marginTop: '3rem', paddingTop: '2rem', borderTop: '1px solid rgba(255,16,122,0.2)' }}>
+              <h4 style={{ color: 'var(--neon-pink)', marginBottom: '0.5rem' }}>⚠️ Zona Peligrosa</h4>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.25rem', lineHeight: 1.5 }}>
+                Esto borra <strong>todos</strong> los eventos, registros de participantes y matches. No se puede deshacer.
+              </p>
+
+              <div style={{ background: 'rgba(255,16,122,0.04)', border: '1px solid rgba(255,16,122,0.25)', padding: '1rem', borderRadius: '10px' }}>
+                <label className="input-label" style={{ color: 'var(--neon-pink)' }}>Escribí <code style={{ background: 'rgba(0,0,0,0.4)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>BORRAR TODO</code> para habilitar</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  value={wipeConfirmText}
+                  onChange={(e) => setWipeConfirmText(e.target.value)}
+                  placeholder="BORRAR TODO"
+                  style={{ marginBottom: '0.75rem' }}
+                />
+
+                <label className="input-label" style={{ color: 'var(--neon-pink)' }}>Reingresá la contraseña de admin</label>
+                <input
+                  type="password"
+                  className="input-field"
+                  value={wipePasswordInput}
+                  onChange={(e) => setWipePasswordInput(e.target.value)}
+                  placeholder="Contraseña actual"
+                  style={{ marginBottom: '1rem' }}
+                />
+
+                <button
+                  onClick={handleWipeDatabase}
+                  disabled={wipeLoading || wipeConfirmText !== 'BORRAR TODO' || !wipePasswordInput}
+                  style={{
+                    width: '100%',
+                    background: wipeConfirmText === 'BORRAR TODO' && wipePasswordInput
+                      ? 'linear-gradient(135deg, var(--neon-pink), #c0392b)'
+                      : 'rgba(255,255,255,0.05)',
+                    color: wipeConfirmText === 'BORRAR TODO' && wipePasswordInput ? 'white' : 'var(--text-muted)',
+                    border: '1px solid rgba(255,16,122,0.4)',
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    cursor: wipeLoading || wipeConfirmText !== 'BORRAR TODO' || !wipePasswordInput ? 'not-allowed' : 'pointer',
+                    fontWeight: 700,
+                    fontSize: '0.9rem',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {wipeLoading ? 'Borrando...' : '🗑️ Limpiar Base de Datos'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── HISTORIAL: Sub-tab Toggle ─── */}
+        {(activeTab === 'participants' || activeTab === 'historico') && (
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', padding: '0.3rem', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', maxWidth: 'fit-content' }}>
+            <button
+              onClick={() => { setHistorialSubtab('eventos'); setActiveTab('historico'); }}
+              style={{
+                padding: '0.5rem 1.1rem', borderRadius: '8px', border: 'none', cursor: 'pointer',
+                fontSize: '0.85rem', fontWeight: 600, transition: 'all 0.2s',
+                background: activeTab === 'historico' ? 'rgba(0,255,255,0.12)' : 'transparent',
+                color: activeTab === 'historico' ? 'var(--neon-cyan)' : 'var(--text-muted)',
+                boxShadow: activeTab === 'historico' ? '0 0 10px rgba(0,255,255,0.15)' : 'none',
+              }}
+            >
+              📅 Por Evento
+            </button>
+            <button
+              onClick={() => { setHistorialSubtab('participantes'); setActiveTab('participants'); loadParticipants(); }}
+              style={{
+                padding: '0.5rem 1.1rem', borderRadius: '8px', border: 'none', cursor: 'pointer',
+                fontSize: '0.85rem', fontWeight: 600, transition: 'all 0.2s',
+                background: activeTab === 'participants' ? 'rgba(255,16,122,0.12)' : 'transparent',
+                color: activeTab === 'participants' ? 'var(--neon-pink)' : 'var(--text-muted)',
+                boxShadow: activeTab === 'participants' ? '0 0 10px rgba(255,16,122,0.15)' : 'none',
+              }}
+            >
+              👥 Por Participante
+            </button>
           </div>
         )}
 
@@ -2425,6 +2570,206 @@ export default function AdminClient({ events }: { events: Event[] }) {
                   })}
                 </div>
               )}
+            </div>
+          );
+        })()}
+
+        {/* ─── TAB: HISTÓRICO ─── */}
+        {activeTab === 'historico' && (() => {
+          const eventsSorted = [...eventList].sort(
+            (a, b) => (b.groupNumber ?? 0) - (a.groupNumber ?? 0)
+          );
+
+          const q = historicoSearch.trim().toLowerCase();
+          const eventsFiltered = !q ? eventsSorted : eventsSorted.filter(ev => {
+            if (ev.groupNumber != null && (`g${ev.groupNumber}` === q || String(ev.groupNumber) === q || String(ev.groupNumber).includes(q))) return true;
+            if (ev.type.toLowerCase().includes(q)) return true;
+            if ((ev.ageRange || '').toLowerCase().includes(q)) return true;
+            const dateStr = format(new Date(ev.date), "dd/MM/yyyy", { locale: es });
+            const dateLong = format(new Date(ev.date), "d 'de' MMMM yyyy", { locale: es }).toLowerCase();
+            if (dateStr.includes(q) || dateLong.includes(q)) return true;
+            return false;
+          });
+
+          const computeMatchesInEvent = (regs: RegistrationWithEvent[], eventId: string) => {
+            const md = matchDataByEvent[eventId];
+            const sel = md?.selections || {};
+            const matchesByReg: Record<string, RegistrationWithEvent[]> = {};
+            for (const r of regs) {
+              const mySel = sel[r.id] || [];
+              matchesByReg[r.id] = regs.filter(o =>
+                o.id !== r.id && mySel.includes(o.id) && (sel[o.id] || []).includes(r.id)
+              );
+            }
+            const seen = new Set<string>();
+            let pairCount = 0;
+            for (const r of regs) {
+              for (const m of matchesByReg[r.id] || []) {
+                const key = [r.id, m.id].sort().join('|');
+                if (!seen.has(key)) { seen.add(key); pairCount++; }
+              }
+            }
+            return { matchesByReg, pairCount };
+          };
+
+          const formatPartner = (m?: RegistrationWithEvent) =>
+            m ? `${m.firstName} ${m.lastName}`.trim() : null;
+
+          return (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.5rem', margin: 0 }}>📚 Histórico de Eventos</h3>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.3rem' }}>
+                    Resumen rápido: participantes y matches de cada evento. {eventsFiltered.length}{q ? ` de ${eventsSorted.length}` : ''} eventos.
+                  </p>
+                </div>
+                <button
+                  onClick={async () => {
+                    if (!window.confirm('¿Cargar los 40 grupos históricos en la base de datos? Los que ya existen se saltean.')) return;
+                    try {
+                      const res = await fetch('/api/seed-events', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ password: currentAdminPassword }),
+                      });
+                      const data = await res.json();
+                      if (data.ok) {
+                        showSuccess(`✅ ${data.created} grupos cargados, ${data.skipped} ya existían.`);
+                        await reloadEvents();
+                      } else { setError(data.error); }
+                    } catch { setError('Error cargando grupos'); }
+                  }}
+                  style={{ background: 'rgba(0,255,255,0.1)', border: '1px solid rgba(0,255,255,0.3)', color: 'var(--neon-cyan)', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem', transition: 'all 0.2s', whiteSpace: 'nowrap' }}
+                >
+                  🗂️ Cargar Grupos Históricos
+                </button>
+              </div>
+
+              <div style={{ position: 'relative', marginBottom: '1.5rem' }}>
+                <input
+                  type="text"
+                  className="input-field"
+                  value={historicoSearch}
+                  onChange={(e) => setHistoricoSearch(e.target.value)}
+                  placeholder="🔍 Buscar por grupo (G40, 40), fecha (07/05/2026) o tipo de evento…"
+                  style={{ paddingRight: q ? '2.5rem' : undefined }}
+                />
+                {q && (
+                  <button
+                    onClick={() => setHistoricoSearch('')}
+                    style={{
+                      position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)',
+                      background: 'none', border: 'none', color: 'var(--text-muted)',
+                      cursor: 'pointer', fontSize: '1.1rem', padding: '0.2rem 0.4rem',
+                    }}
+                    aria-label="Limpiar búsqueda"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              {participantsLoading && (
+                <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Cargando…</div>
+              )}
+
+              {!participantsLoading && eventsSorted.length === 0 && (
+                <div className="glass-card" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>📭</div>
+                  <p>Todavía no hay eventos cargados.</p>
+                </div>
+              )}
+
+              {!participantsLoading && eventsSorted.length > 0 && eventsFiltered.length === 0 && (
+                <div className="glass-card" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🔍</div>
+                  <p>Ningún evento coincide con &quot;{historicoSearch}&quot;.</p>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {eventsFiltered.map(ev => {
+                  const regs = allRegistrations.filter(r => (r.eventId ?? r.archivedEventId) === ev.id);
+                  const men = regs.filter(r => r.gender === 'Hombre').sort((a, b) => a.firstName.localeCompare(b.firstName));
+                  const women = regs.filter(r => r.gender === 'Mujer').sort((a, b) => a.firstName.localeCompare(b.firstName));
+                  const { matchesByReg, pairCount } = computeMatchesInEvent(regs, ev.id);
+
+                  const renderRow = (r: RegistrationWithEvent, color: string) => {
+                    const partners = matchesByReg[r.id] || [];
+                    return (
+                      <div key={r.id} style={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        gap: '0.75rem', padding: '0.5rem 0.75rem',
+                        borderBottom: '1px solid rgba(255,255,255,0.04)',
+                        fontSize: '0.85rem',
+                      }}>
+                        <span style={{ color: 'white', fontWeight: 500 }}>{r.firstName} {r.lastName}</span>
+                        {partners.length > 0 ? (
+                          <span style={{ color, fontSize: '0.78rem', textAlign: 'right', display: 'flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                            💘 {partners.map(formatPartner).join(', ')}
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', opacity: 0.5 }}>—</span>
+                        )}
+                      </div>
+                    );
+                  };
+
+                  return (
+                    <div key={ev.id} className="glass-card" style={{ padding: '1.25rem' }}>
+                      {/* Header */}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.6rem', marginBottom: '1rem', paddingBottom: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                        {ev.groupNumber != null && (
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--neon-cyan)', background: 'rgba(0,255,255,0.08)', border: '1px solid rgba(0,255,255,0.3)', padding: '0.2rem 0.55rem', borderRadius: '999px', letterSpacing: '0.5px' }}>
+                            G{ev.groupNumber}
+                          </span>
+                        )}
+                        <span style={{ color: 'white', fontWeight: 600, fontSize: '0.95rem' }}>{ev.type}</span>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>·</span>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                          {format(new Date(ev.date), "dd/MM/yyyy", { locale: es })}
+                        </span>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>·</span>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{ev.ageRange}</span>
+                        <span style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.04)', padding: '0.2rem 0.55rem', borderRadius: '6px' }}>
+                            👥 {regs.length}
+                          </span>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--neon-pink)', background: 'rgba(255,16,122,0.08)', border: '1px solid rgba(255,16,122,0.25)', padding: '0.2rem 0.55rem', borderRadius: '6px' }}>
+                            💘 {pairCount}
+                          </span>
+                        </span>
+                      </div>
+
+                      {regs.length === 0 ? (
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center', padding: '1rem 0', opacity: 0.7 }}>Sin participantes registrados.</p>
+                      ) : (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+                          {/* Hombres */}
+                          {men.length > 0 && (
+                            <div>
+                              <div style={{ color: 'var(--neon-cyan)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '2px', fontWeight: 700, marginBottom: '0.4rem', paddingBottom: '0.3rem', borderBottom: '1px solid rgba(0,255,255,0.15)' }}>
+                                🙋‍♂️ Hombres ({men.length})
+                              </div>
+                              {men.map(r => renderRow(r, 'var(--neon-cyan)'))}
+                            </div>
+                          )}
+                          {/* Mujeres */}
+                          {women.length > 0 && (
+                            <div>
+                              <div style={{ color: 'var(--neon-pink)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '2px', fontWeight: 700, marginBottom: '0.4rem', paddingBottom: '0.3rem', borderBottom: '1px solid rgba(255,16,122,0.15)' }}>
+                                🙋‍♀️ Mujeres ({women.length})
+                              </div>
+                              {women.map(r => renderRow(r, 'var(--neon-pink)'))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           );
         })()}

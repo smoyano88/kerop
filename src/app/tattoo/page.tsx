@@ -16,16 +16,13 @@ export default async function TattooPage() {
     include: { contacts: true },
   });
 
-  const gallery = [
-    { src: '/img/tattoo-octopus.jpg', title: 'Pulpo Blackwork', artist: 'Marcos' },
-    { src: '/img/tattoo-sleeve.jpg', title: 'Sleeve Floral', artist: 'Marcos' },
-    { src: '/img/tattoo-sun.jpg', title: 'Sol Lineal', artist: 'Marcos' },
-    { src: '/img/tattoo-text.jpg', title: 'Fine Line Text', artist: 'Marcos' },
-    { src: '/img/tattoo-angel.jpg', title: 'Estatua Clásica', artist: 'Maik' },
-    { src: '/img/tattoo-eye-leaves.jpg', title: 'Ojo Botánico', artist: 'Maik' },
-    { src: '/img/tattoo-branch.jpg', title: 'Fine Line Botánico', artist: 'Maik' },
-    { src: '/img/tattoo-butterfly.jpg', title: 'Mariposa Azul', artist: 'Maik' },
-  ];
+  const portfolios = tatuadores
+    .map(t => ({
+      name: t.name,
+      instagram: t.instagram,
+      images: (Array.isArray(t.gallery) ? (t.gallery as unknown as string[]) : []).filter(Boolean),
+    }))
+    .filter(p => p.images.length > 0);
 
   return (
     <main style={{ paddingBottom: '6rem' }}>
@@ -48,29 +45,41 @@ export default async function TattooPage() {
       </section>
 
       {/* ─── ARTISTAS (client component para WA tracking) ─── */}
-      <TattooClient tatuadores={tatuadores.map(t => ({ id: t.id, name: t.name, specialty: t.specialty, bio: t.bio, phone: t.phone, instagram: t.instagram, photoUrl: t.photoUrl }))} />
+      <TattooClient tatuadores={tatuadores.map(t => ({
+        id: t.id,
+        name: t.name,
+        specialty: t.specialty,
+        bio: t.bio,
+        phone: t.phone,
+        instagram: t.instagram,
+        photoUrl: t.photoUrl,
+        gallery: Array.isArray(t.gallery) ? (t.gallery as unknown as string[]) : [],
+      }))} />
 
-      {/* ─── GALERÍA ─── */}
-      <section className="container" style={{ paddingBottom: '4rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '3rem' }}>
-          <div style={{ width: '40px', height: '2px', background: 'var(--neon-cyan)' }} />
-          <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)' }}>Portfolio</h2>
-          <div style={{ flex: 1, height: '1px', background: 'linear-gradient(90deg, rgba(0,255,255,0.3), transparent)' }} />
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '1.5rem' }}>
-          {gallery.map((item, i) => (
-            <div key={i} className="glass-card" style={{ padding: 0, overflow: 'hidden', border: '1px solid rgba(0,255,255,0.1)' }}>
-              <div style={{ height: '380px', position: 'relative', overflow: 'hidden' }}>
-                <Image src={item.src} alt={item.title} fill style={{ objectFit: 'cover', filter: 'grayscale(30%)' }} />
-              </div>
-              <div style={{ padding: '1rem 1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'white', fontWeight: 600 }}>{item.title}</span>
-                <span className="text-cyan" style={{ fontSize: '0.8rem' }}>por {item.artist}</span>
-              </div>
+      {/* ─── PORTFOLIO POR ARTISTA ─── */}
+      {portfolios.map((p, idx) => (
+        <section key={p.name} className="container" style={{ paddingBottom: idx === portfolios.length - 1 ? '4rem' : '5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
+            <div style={{ width: '40px', height: '2px', background: 'var(--neon-cyan)' }} />
+            <div>
+              <p className="text-cyan" style={{ textTransform: 'uppercase', letterSpacing: '4px', fontSize: '0.75rem', marginBottom: '0.25rem' }}>Portfolio</p>
+              <h2 style={{ fontSize: 'clamp(1.6rem, 3vw, 2.2rem)', margin: 0 }}>
+                Trabajos de <span className="text-cyan">{p.name}</span>
+              </h2>
             </div>
-          ))}
-        </div>
-      </section>
+            <div style={{ flex: 1, height: '1px', background: 'linear-gradient(90deg, rgba(0,255,255,0.3), transparent)', minWidth: '60px' }} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1.25rem' }}>
+            {p.images.map((src, i) => (
+              <div key={i} className="glass-card" style={{ padding: 0, overflow: 'hidden', border: '1px solid rgba(0,255,255,0.1)' }}>
+                <div style={{ height: '360px', position: 'relative', overflow: 'hidden' }}>
+                  <Image src={src} alt={`Trabajo de ${p.name}`} fill style={{ objectFit: 'cover' }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
     </main>
   );
 }

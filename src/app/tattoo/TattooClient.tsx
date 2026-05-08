@@ -10,6 +10,7 @@ interface Tatuador {
   phone: string;
   instagram: string;
   photoUrl: string;
+  gallery: string[];
 }
 
 export default function TattooClient({ tatuadores }: { tatuadores: Tatuador[] }) {
@@ -41,7 +42,7 @@ export default function TattooClient({ tatuadores }: { tatuadores: Tatuador[] })
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '2rem' }}>
         {tatuadores.map(artist => (
-          <div key={artist.id} className="glass-card" style={{ border: '1px solid rgba(0,255,255,0.15)', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div key={artist.id} className="glass-card" style={{ border: '1px solid rgba(0,255,255,0.15)', display: 'flex', flexDirection: 'column', gap: '1.25rem', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'flex-start' }}>
               <div style={{ width: '90px', height: '90px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0, border: '2px solid rgba(0,255,255,0.4)', position: 'relative', background: 'rgba(255,255,255,0.05)' }}>
                 {artist.photoUrl ? (
@@ -63,9 +64,11 @@ export default function TattooClient({ tatuadores }: { tatuadores: Tatuador[] })
               </div>
             </div>
 
-            {artist.bio && (
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: 1.7 }}>{artist.bio}</p>
-            )}
+            <div style={{ flex: 1 }}>
+              {artist.bio && (
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: 1.7, whiteSpace: 'pre-line' }}>{artist.bio}</p>
+              )}
+            </div>
 
             <button
               onClick={() => handleWhatsApp(artist)}
