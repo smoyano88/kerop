@@ -57,6 +57,7 @@ interface Event {
   mpEnabled: boolean;
   price: number;
   groupNumber?: number | null;
+  archived?: boolean;
   registrations: Registration[];
 }
 
@@ -952,7 +953,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
                 padding: '0.2rem 0.75rem',
                 fontSize: '0.85rem',
                 fontWeight: 600
-              }}>{eventList.filter(ev => new Date(ev.date) >= new Date()).length}</span>
+              }}>{eventList.filter(ev => !ev.archived && new Date(ev.date) >= new Date()).length}</span>
               <button
                 onClick={() => reloadEvents()}
                 style={{ marginLeft: 'auto', background: 'none', border: '1px solid rgba(255,255,255,0.15)', color: 'var(--text-muted)', padding: '0.4rem 1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', transition: 'all 0.2s' }}
@@ -962,7 +963,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
               </button>
             </div>
 
-            {eventList.filter(ev => new Date(ev.date) >= new Date()).length === 0 ? (
+            {eventList.filter(ev => !ev.archived && new Date(ev.date) >= new Date()).length === 0 ? (
               <div className="glass-card" style={{ textAlign: 'center', padding: '4rem 2rem', color: 'var(--text-muted)' }}>
                 <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📅</div>
                 <p>No hay eventos futuros. Usá "Agregar Evento" para crear el primero.</p>
@@ -970,7 +971,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                {eventList.filter(ev => new Date(ev.date) >= new Date()).map((ev) => {
+                {eventList.filter(ev => !ev.archived && new Date(ev.date) >= new Date()).map((ev) => {
                   const total = (ev.registrations || []).length;
                   const isExpanded = expandedEvent === ev.id;
                   const drinksList = (ev.drinksAvailable || '').split(',').map(d => d.trim()).filter(Boolean);
@@ -1411,6 +1412,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
         {activeTab === 'matches' && (() => {
           // Eventos con cupo completo: mixto = spotsPerGender * 2 (hombres + mujeres), HH/MM = spotsPerGender total
           const fullEvents = eventList.filter(ev => {
+            if (ev.archived) return false;
             const isHomo = ev.type === 'Ellos y Ellos' || ev.type === 'Ellas y Ellas';
             const totalSpots = isHomo ? ev.spotsPerGender : ev.spotsPerGender * 2;
             const paidCount = ev.registrations.filter(r => r.paid).length;

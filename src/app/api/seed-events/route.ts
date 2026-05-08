@@ -42,7 +42,6 @@ const EVENTS = [
   { groupNumber: 37, date: new Date('2026-04-17T23:00:00Z') },
   { groupNumber: 38, date: new Date('2026-04-18T23:00:00Z') },
   { groupNumber: 39, date: new Date('2026-04-22T23:00:00Z') },
-  { groupNumber: 40, date: new Date('2026-05-13T23:00:00Z') },
 ];
 
 export async function POST(request: Request) {

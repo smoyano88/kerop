@@ -22,6 +22,7 @@ model Event {
   spotsPerGender  Int            @default(8)
   price           Int            @default(850)
   mpEnabled       Boolean        @default(true)
+  archived        Boolean        @default(false)
   registrations   Registration[]
   matchData       MatchData?
   createdAt       DateTime       @default(now())

@@ -16,14 +16,17 @@ export async function GET(request: Request) {
     });
 
     if (scope === "admin") {
+      // Admin recibe todos (incluye archivados para el historial)
       return NextResponse.json(events);
     }
 
-    // Para uso público: filtrar registraciones expiradas para que no bloqueen cupos
-    const filtered = events.map((ev) => ({
-      ...ev,
-      registrations: ev.registrations.filter((r) => isReservationActive(r)),
-    }));
+    // Público: excluir archivados y filtrar reservas expiradas
+    const filtered = events
+      .filter((ev) => !ev.archived)
+      .map((ev) => ({
+        ...ev,
+        registrations: ev.registrations.filter((r) => isReservationActive(r)),
+      }));
 
     return NextResponse.json(filtered);
   } catch (error) {

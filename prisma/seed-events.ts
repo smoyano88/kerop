@@ -42,7 +42,6 @@ const events = [
   { groupNumber: 37, date: new Date('2026-04-17T20:00:00-03:00') },
   { groupNumber: 38, date: new Date('2026-04-18T20:00:00-03:00') },
   { groupNumber: 39, date: new Date('2026-04-22T20:00:00-03:00') },
-  { groupNumber: 40, date: new Date('2026-05-13T20:00:00-03:00') },
 ];
 
 async function main() {
