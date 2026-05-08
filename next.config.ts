@@ -4,7 +4,8 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: [
     'f01be6343f2465b6-167-62-101-141.serveousercontent.com',
     'localhost:3000',
-    '192.168.1.2'
+    '192.168.1.2',
+    '192.168.1.16'
   ],
   typescript: { ignoreBuildErrors: true },
   images: {
