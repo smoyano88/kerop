@@ -97,6 +97,17 @@ export async function POST(request: Request) {
             throw Object.assign(new Error('Ya existe una inscripción para este Instagram en este evento.'), { status: 400 });
         }
 
+        const normalizedPhone = normalizePhone(phone);
+        const igHandle = instagram ? (instagram.startsWith('@') ? instagram : `@${instagram}`) : null;
+
+        // Si viene instagram y hay registros previos del mismo teléfono sin ig, actualizarlos
+        if (igHandle && normalizedPhone) {
+          await tx.registration.updateMany({
+            where: { phone: normalizedPhone, instagram: null },
+            data: { instagram: igHandle },
+          });
+        }
+
         const reg = await tx.registration.create({
           data: {
             firstName,
@@ -109,8 +120,8 @@ export async function POST(request: Request) {
             paid: false,
             paymentMethod,
             email: email || null,
-            phone: normalizePhone(phone),
-            instagram: instagram ? (instagram.startsWith('@') ? instagram : `@${instagram}`) : null,
+            phone: normalizedPhone,
+            instagram: igHandle,
           },
           include: { event: true },
         });
