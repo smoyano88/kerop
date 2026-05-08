@@ -74,11 +74,46 @@ export default function AdminClient({ events }: { events: Event[] }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Tatuadores State
-  interface TatuadorAdmin { id: string; name: string; specialty: string; bio: string; phone: string; instagram: string; photoUrl: string; order: number; active: boolean; contacts: { id: string; createdAt: string }[]; }
+  interface TatuadorAdmin { id: string; name: string; specialty: string; bio: string; phone: string; instagram: string; photoUrl: string; gallery: string[]; order: number; active: boolean; contacts: { id: string; createdAt: string }[]; }
   const [tatuadoresList, setTatuadoresList] = useState<TatuadorAdmin[]>([]);
   const [tatuadoresLoading, setTatuadoresLoading] = useState(false);
-  const [tatForm, setTatForm] = useState({ name: '', specialty: '', bio: '', phone: '', instagram: '', photoUrl: '', order: 0 });
+  const [tatForm, setTatForm] = useState({ name: '', specialty: '', bio: '', phone: '', instagram: '', photoUrl: '', gallery: [] as string[], order: 0 });
   const [tatEditId, setTatEditId] = useState<string | null>(null);
+  const [tatPhotoUploading, setTatPhotoUploading] = useState(false);
+  const [tatGalleryUploading, setTatGalleryUploading] = useState(false);
+  const tatPhotoRef = useRef<HTMLInputElement>(null);
+  const tatGalleryRef = useRef<HTMLInputElement>(null);
+
+  const uploadFile = async (file: File): Promise<string> => {
+    const fd = new FormData();
+    fd.append('password', currentAdminPassword);
+    fd.append('file', file);
+    const res = await fetch('/api/upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error subiendo archivo');
+    return data.url as string;
+  };
+
+  const handleTatPhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    setTatPhotoUploading(true);
+    try {
+      const url = await uploadFile(file);
+      setTatForm(f => ({ ...f, photoUrl: url }));
+    } catch { setError('Error subiendo foto de perfil'); }
+    finally { setTatPhotoUploading(false); e.target.value = ''; }
+  };
+
+  const handleTatGallerySelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    setTatGalleryUploading(true);
+    try {
+      const urls = await Promise.all(files.map(uploadFile));
+      setTatForm(f => ({ ...f, gallery: [...f.gallery, ...urls] }));
+    } catch { setError('Error subiendo fotos de galería'); }
+    finally { setTatGalleryUploading(false); e.target.value = ''; }
+  };
 
   // Contenido State (horarios + carta)
   interface MenuItemAdmin { id: string; category: string; name: string; description: string; price: number; imageUrl: string; available: boolean; order: number; }
@@ -97,8 +132,27 @@ export default function AdminClient({ events }: { events: Event[] }) {
   const [horariosLoading, setHorariosLoading] = useState(false);
   const [menuItems, setMenuItems] = useState<MenuItemAdmin[]>([]);
   const [menuLoading, setMenuLoading] = useState(false);
-  const [menuForm, setMenuForm] = useState({ category: 'cafe', name: '', description: '', price: '', imageUrl: '', order: 0 });
+  const [menuForm, setMenuForm] = useState({ category: 'alfajor', name: '', description: '', price: '', imageUrl: '', order: 0 });
   const [menuEditId, setMenuEditId] = useState<string | null>(null);
+  const [menuImgUploading, setMenuImgUploading] = useState(false);
+  const menuImgRef = useRef<HTMLInputElement>(null);
+
+  const handleMenuImgSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    setMenuImgUploading(true);
+    try {
+      const url = await uploadFile(file);
+      setMenuForm(f => ({ ...f, imageUrl: url }));
+    } catch { setError('Error subiendo imagen'); }
+    finally { setMenuImgUploading(false); e.target.value = ''; }
+  };
+
+  // Helper: formatear input de hora → insertar : automáticamente
+  const formatTimeInput = (raw: string): string => {
+    const digits = raw.replace(/\D/g, '').slice(0, 4);
+    if (digits.length <= 2) return digits;
+    return `${digits.slice(0, 2)}:${digits.slice(2)}`;
+  };
 
   const loadContenido = async () => {
     setHorariosLoading(true);
@@ -626,7 +680,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
       const res = await fetch('/api/tatuadores', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const data = await res.json();
       if (!res.ok) { alert(data.error); return; }
-      setTatForm({ name: '', specialty: '', bio: '', phone: '', instagram: '', photoUrl: '', order: 0 });
+      setTatForm({ name: '', specialty: '', bio: '', phone: '', instagram: '', photoUrl: '', gallery: [], order: 0 });
       setTatEditId(null);
       await loadTatuadores();
     } catch {} finally { setTatuadoresLoading(false); }
@@ -1909,23 +1963,74 @@ export default function AdminClient({ events }: { events: Event[] }) {
                 value={tatForm.bio}
                 onChange={e => setTatForm(f => ({ ...f, bio: e.target.value }))}
                 rows={3}
-                style={{ marginBottom: '0.75rem', resize: 'vertical' }}
+                style={{ marginBottom: '1rem', resize: 'vertical' }}
               />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.75rem', alignItems: 'center' }}>
-                <input className="input-field" placeholder="URL foto (opcional)" value={tatForm.photoUrl} onChange={e => setTatForm(f => ({ ...f, photoUrl: e.target.value }))} />
-                <input className="input-field" type="number" placeholder="Orden" value={tatForm.order} onChange={e => setTatForm(f => ({ ...f, order: parseInt(e.target.value) || 0 }))} style={{ width: '90px' }} />
-              </div>
-              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem', justifyContent: 'flex-end' }}>
-                {tatEditId && (
-                  <button onClick={() => { setTatEditId(null); setTatForm({ name: '', specialty: '', bio: '', phone: '', instagram: '', photoUrl: '', order: 0 }); }}
-                    style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-muted)', borderRadius: '8px', padding: '0.6rem 1.2rem', cursor: 'pointer' }}>
-                    Cancelar
+
+              {/* Foto de perfil */}
+              <div style={{ marginBottom: '1rem' }}>
+                <label className="input-label">Foto de perfil</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                  {tatForm.photoUrl && (
+                    <div style={{ position: 'relative', width: '72px', height: '72px', borderRadius: '50%', overflow: 'hidden', border: '2px solid rgba(0,255,255,0.4)', flexShrink: 0 }}>
+                      <img src={tatForm.photoUrl} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <button onClick={() => setTatForm(f => ({ ...f, photoUrl: '' }))} style={{ position: 'absolute', top: 0, right: 0, background: 'rgba(0,0,0,0.7)', border: 'none', color: 'white', width: '22px', height: '22px', borderRadius: '50%', cursor: 'pointer', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => tatPhotoRef.current?.click()}
+                    disabled={tatPhotoUploading}
+                    style={{ background: 'rgba(0,255,255,0.1)', border: '1px solid rgba(0,255,255,0.3)', color: 'var(--neon-cyan)', borderRadius: '8px', padding: '0.5rem 1rem', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem', opacity: tatPhotoUploading ? 0.6 : 1 }}
+                  >
+                    {tatPhotoUploading ? '⏳ Subiendo...' : '📷 Elegir foto'}
                   </button>
+                  <input ref={tatPhotoRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handleTatPhotoSelect} />
+                  {!tatForm.photoUrl && <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Sin foto aún</span>}
+                </div>
+              </div>
+
+              {/* Galería */}
+              <div style={{ marginBottom: '1rem' }}>
+                <label className="input-label">Galería de trabajos</label>
+                {tatForm.gallery.length > 0 && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                    {tatForm.gallery.map((url, i) => (
+                      <div key={i} style={{ position: 'relative', aspectRatio: '1', borderRadius: '8px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <img src={url} alt={`galería ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <button onClick={() => setTatForm(f => ({ ...f, gallery: f.gallery.filter((_, j) => j !== i) }))} style={{ position: 'absolute', top: '3px', right: '3px', background: 'rgba(0,0,0,0.75)', border: 'none', color: 'white', width: '20px', height: '20px', borderRadius: '50%', cursor: 'pointer', fontSize: '0.65rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                      </div>
+                    ))}
+                  </div>
                 )}
-                <button onClick={handleSaveTatuador} disabled={tatuadoresLoading}
-                  style={{ background: 'rgba(0,255,255,0.12)', border: '1px solid rgba(0,255,255,0.4)', color: 'var(--neon-cyan)', borderRadius: '8px', padding: '0.6rem 1.4rem', cursor: 'pointer', fontWeight: 600 }}>
-                  {tatEditId ? 'Guardar cambios' : '+ Agregar'}
+                <button
+                  type="button"
+                  onClick={() => tatGalleryRef.current?.click()}
+                  disabled={tatGalleryUploading}
+                  style={{ background: 'rgba(0,255,255,0.08)', border: '1px solid rgba(0,255,255,0.25)', color: 'var(--neon-cyan)', borderRadius: '8px', padding: '0.5rem 1rem', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem', opacity: tatGalleryUploading ? 0.6 : 1 }}
+                >
+                  {tatGalleryUploading ? '⏳ Subiendo...' : '🖼️ Agregar fotos a galería'}
                 </button>
+                <input ref={tatGalleryRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleTatGallerySelect} />
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '0.4rem' }}>Podés seleccionar varias fotos a la vez. Se muestran en el portfolio público.</p>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <label className="input-label" style={{ margin: 0, whiteSpace: 'nowrap' }}>Orden:</label>
+                  <input className="input-field" type="number" value={tatForm.order} onChange={e => setTatForm(f => ({ ...f, order: parseInt(e.target.value) || 0 }))} style={{ width: '80px', margin: 0 }} />
+                </div>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  {tatEditId && (
+                    <button onClick={() => { setTatEditId(null); setTatForm({ name: '', specialty: '', bio: '', phone: '', instagram: '', photoUrl: '', gallery: [], order: 0 }); }}
+                      style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-muted)', borderRadius: '8px', padding: '0.6rem 1.2rem', cursor: 'pointer' }}>
+                      Cancelar
+                    </button>
+                  )}
+                  <button onClick={handleSaveTatuador} disabled={tatuadoresLoading || tatPhotoUploading || tatGalleryUploading}
+                    style={{ background: 'rgba(0,255,255,0.12)', border: '1px solid rgba(0,255,255,0.4)', color: 'var(--neon-cyan)', borderRadius: '8px', padding: '0.6rem 1.4rem', cursor: 'pointer', fontWeight: 600 }}>
+                    {tatuadoresLoading ? '⏳ Guardando...' : tatEditId ? 'Guardar cambios' : '+ Agregar'}
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1937,19 +2042,31 @@ export default function AdminClient({ events }: { events: Event[] }) {
                 <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '1rem 0' }}>No hay tatuadores agregados aún.</p>
               )}
               {tatuadoresList.map(tat => (
-                <div key={tat.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', padding: '0.9rem 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.2rem' }}>
-                      <span style={{ color: 'white', fontWeight: 600 }}>{tat.name}</span>
-                      {tat.instagram && <span className="text-cyan" style={{ fontSize: '0.8rem' }}>{tat.instagram}</span>}
-                      <span style={{ fontSize: '0.75rem', background: 'rgba(37,211,102,0.1)', border: '1px solid rgba(37,211,102,0.25)', color: '#25d366', borderRadius: '20px', padding: '0.1rem 0.5rem' }}>
-                        {tat.contacts.length} consultas
-                      </span>
+                <div key={tat.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', padding: '0.9rem 0', borderBottom: '1px solid rgba(255,255,255,0.05)', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
+                    {tat.photoUrl && (
+                      <div style={{ width: '48px', height: '48px', borderRadius: '50%', overflow: 'hidden', border: '2px solid rgba(0,255,255,0.3)', flexShrink: 0 }}>
+                        <img src={tat.photoUrl} alt={tat.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      </div>
+                    )}
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.2rem', flexWrap: 'wrap' }}>
+                        <span style={{ color: 'white', fontWeight: 600 }}>{tat.name}</span>
+                        {tat.instagram && <span className="text-cyan" style={{ fontSize: '0.8rem' }}>{tat.instagram}</span>}
+                        <span style={{ fontSize: '0.75rem', background: 'rgba(37,211,102,0.1)', border: '1px solid rgba(37,211,102,0.25)', color: '#25d366', borderRadius: '20px', padding: '0.1rem 0.5rem' }}>
+                          {tat.contacts.length} consultas
+                        </span>
+                        {tat.gallery.length > 0 && (
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.04)', borderRadius: '20px', padding: '0.1rem 0.5rem' }}>
+                            🖼️ {tat.gallery.length} fotos
+                          </span>
+                        )}
+                      </div>
+                      <span style={{ color: 'var(--neon-pink)', fontSize: '0.78rem' }}>{tat.specialty}</span>
                     </div>
-                    <span style={{ color: 'var(--neon-pink)', fontSize: '0.78rem' }}>{tat.specialty}</span>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button onClick={() => { setTatEditId(tat.id); setTatForm({ name: tat.name, specialty: tat.specialty, bio: tat.bio, phone: tat.phone, instagram: tat.instagram, photoUrl: tat.photoUrl, order: tat.order }); }}
+                    <button onClick={() => { setTatEditId(tat.id); setTatForm({ name: tat.name, specialty: tat.specialty, bio: tat.bio, phone: tat.phone, instagram: tat.instagram, photoUrl: tat.photoUrl, gallery: tat.gallery, order: tat.order }); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                       style={{ background: 'rgba(0,255,255,0.08)', border: '1px solid rgba(0,255,255,0.2)', color: 'var(--neon-cyan)', borderRadius: '6px', padding: '0.35rem 0.75rem', cursor: 'pointer', fontSize: '0.8rem' }}>
                       Editar
                     </button>
@@ -1971,16 +2088,16 @@ export default function AdminClient({ events }: { events: Event[] }) {
 
             {/* ── Horarios ── */}
             <div className="glass-card" style={{ border: '1px solid rgba(0,255,255,0.15)' }}>
-              <h4 className="text-cyan" style={{ fontSize: '1.1rem', marginBottom: '1.5rem' }}>Horarios</h4>
+              <h4 className="text-cyan" style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>Horarios</h4>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '1.5rem' }}>Escribí solo los números — el ":" se agrega solo. Ej: escribís 0900 y queda 09:00.</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
                 {DIAS.map(dia => (
-                  <div key={dia} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.07)' }}>
-                    <span style={{ width: '90px', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-muted)' }}>{DIA_LABELS[dia]}</span>
-                    {/* Toggle abierto/cerrado */}
+                  <div key={dia} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.07)', flexWrap: 'wrap' }}>
+                    <span style={{ width: '90px', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-muted)', flexShrink: 0 }}>{DIA_LABELS[dia]}</span>
                     <button
                       onClick={() => setHorarios(h => ({ ...h, [dia]: { ...h[dia], open: !h[dia].open } }))}
                       style={{
-                        padding: '0.3rem 0.85rem', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', border: 'none', transition: 'all 0.2s',
+                        padding: '0.3rem 0.85rem', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', border: 'none', transition: 'all 0.2s', flexShrink: 0,
                         background: horarios[dia].open ? 'rgba(57,255,20,0.15)' : 'rgba(255,16,122,0.15)',
                         color: horarios[dia].open ? '#39ff14' : 'var(--neon-pink)',
                         boxShadow: horarios[dia].open ? '0 0 8px rgba(57,255,20,0.3)' : '0 0 8px rgba(255,16,122,0.3)',
@@ -1989,21 +2106,23 @@ export default function AdminClient({ events }: { events: Event[] }) {
                       {horarios[dia].open ? 'ABIERTO' : 'CERRADO'}
                     </button>
                     {horarios[dia].open && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: '160px' }}>
                         <input
                           className="input-field"
-                          style={{ margin: 0, flex: 1, minWidth: 0, textAlign: 'center', letterSpacing: '1px' }}
+                          inputMode="numeric"
+                          style={{ margin: 0, flex: 1, minWidth: 0, textAlign: 'center', letterSpacing: '2px' }}
                           value={horarios[dia].from}
-                          onChange={e => setHorarios(h => ({ ...h, [dia]: { ...h[dia], from: e.target.value } }))}
+                          onChange={e => setHorarios(h => ({ ...h, [dia]: { ...h[dia], from: formatTimeInput(e.target.value) } }))}
                           placeholder="09:00"
                           maxLength={5}
                         />
                         <span style={{ color: 'var(--text-muted)', fontWeight: 700, flexShrink: 0 }}>–</span>
                         <input
                           className="input-field"
-                          style={{ margin: 0, flex: 1, minWidth: 0, textAlign: 'center', letterSpacing: '1px' }}
+                          inputMode="numeric"
+                          style={{ margin: 0, flex: 1, minWidth: 0, textAlign: 'center', letterSpacing: '2px' }}
                           value={horarios[dia].to}
-                          onChange={e => setHorarios(h => ({ ...h, [dia]: { ...h[dia], to: e.target.value } }))}
+                          onChange={e => setHorarios(h => ({ ...h, [dia]: { ...h[dia], to: formatTimeInput(e.target.value) } }))}
                           placeholder="22:00"
                           maxLength={5}
                         />
@@ -2024,8 +2143,6 @@ export default function AdminClient({ events }: { events: Event[] }) {
                   boxShadow: '0 0 12px rgba(0,255,255,0.15)', transition: 'all 0.2s',
                   opacity: horariosLoading ? 0.6 : 1,
                 }}
-                onMouseEnter={e => { if (!horariosLoading) (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 20px rgba(0,255,255,0.4)'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 12px rgba(0,255,255,0.15)'; }}
               >
                 {horariosLoading ? '⏳ Guardando...' : '✓ Guardar Horarios'}
               </button>
@@ -2040,14 +2157,16 @@ export default function AdminClient({ events }: { events: Event[] }) {
                 <div>
                   <label className="input-label">Categoría</label>
                   <select className="input-field" value={menuForm.category} onChange={e => setMenuForm(f => ({ ...f, category: e.target.value }))}>
-                    <option value="cafe">Café</option>
-                    <option value="comida">Comida</option>
-                    <option value="tragos">Tragos</option>
+                    <option value="alfajor">🍫 Alfajor</option>
+                    <option value="vegano">🌿 Vegano</option>
+                    <option value="no_vegano">🥪 No Vegano</option>
+                    <option value="bebida">☕ Bebida</option>
+                    <option value="trago">🍹 Trago</option>
                   </select>
                 </div>
                 <div>
                   <label className="input-label">Nombre *</label>
-                  <input className="input-field" value={menuForm.name} onChange={e => setMenuForm(f => ({ ...f, name: e.target.value }))} placeholder="Ej: Flat White" />
+                  <input className="input-field" value={menuForm.name} onChange={e => setMenuForm(f => ({ ...f, name: e.target.value }))} placeholder="Ej: Banana Split" />
                 </div>
                 <div>
                   <label className="input-label">Precio (UYU) *</label>
@@ -2055,36 +2174,53 @@ export default function AdminClient({ events }: { events: Event[] }) {
                 </div>
                 <div>
                   <label className="input-label">Descripción</label>
-                  <input className="input-field" value={menuForm.description} onChange={e => setMenuForm(f => ({ ...f, description: e.target.value }))} placeholder="Descripción corta" />
-                </div>
-                <div>
-                  <label className="input-label">URL de imagen</label>
-                  <input className="input-field" value={menuForm.imageUrl} onChange={e => setMenuForm(f => ({ ...f, imageUrl: e.target.value }))} placeholder="/img/..." />
+                  <input className="input-field" value={menuForm.description} onChange={e => setMenuForm(f => ({ ...f, description: e.target.value }))} placeholder="Descripción corta del producto" />
                 </div>
                 <div>
                   <label className="input-label">Orden</label>
                   <input className="input-field" type="number" value={menuForm.order} onChange={e => setMenuForm(f => ({ ...f, order: Number(e.target.value) }))} />
                 </div>
               </div>
+
+              {/* Upload imagen menú */}
+              <div style={{ marginBottom: '1rem' }}>
+                <label className="input-label">Foto del producto</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                  {menuForm.imageUrl && (
+                    <div style={{ position: 'relative', width: '80px', height: '80px', borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.15)', flexShrink: 0 }}>
+                      <img src={menuForm.imageUrl} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <button onClick={() => setMenuForm(f => ({ ...f, imageUrl: '' }))} style={{ position: 'absolute', top: '3px', right: '3px', background: 'rgba(0,0,0,0.7)', border: 'none', color: 'white', width: '20px', height: '20px', borderRadius: '50%', cursor: 'pointer', fontSize: '0.65rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => menuImgRef.current?.click()}
+                    disabled={menuImgUploading}
+                    style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: 'var(--text-muted)', borderRadius: '8px', padding: '0.5rem 1rem', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem', opacity: menuImgUploading ? 0.6 : 1 }}
+                  >
+                    {menuImgUploading ? '⏳ Subiendo...' : '📷 Elegir imagen'}
+                  </button>
+                  <input ref={menuImgRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handleMenuImgSelect} />
+                  {!menuForm.imageUrl && <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Sin imagen</span>}
+                </div>
+              </div>
+
               <div style={{ display: 'flex', gap: '1rem' }}>
                 <button
                   onClick={handleSaveMenuItem}
-                  disabled={menuLoading || !menuForm.name.trim() || !menuForm.price}
+                  disabled={menuLoading || menuImgUploading || !menuForm.name.trim() || !menuForm.price}
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
                     background: 'rgba(255,16,122,0.15)', border: '1px solid rgba(255,16,122,0.5)',
                     color: 'var(--neon-pink)', padding: '0.7rem 1.5rem', borderRadius: '10px',
-                    cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem', letterSpacing: '1px',
-                    boxShadow: '0 0 12px rgba(255,16,122,0.2)', transition: 'all 0.2s',
-                    opacity: (menuLoading || !menuForm.name.trim() || !menuForm.price) ? 0.5 : 1,
+                    cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem',
+                    opacity: (menuLoading || menuImgUploading || !menuForm.name.trim() || !menuForm.price) ? 0.5 : 1,
                   }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 20px rgba(255,16,122,0.5)'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 0 12px rgba(255,16,122,0.2)'; }}
                 >
                   {menuLoading ? '⏳ Guardando...' : menuEditId ? '✓ Actualizar' : '+ Agregar'}
                 </button>
                 {menuEditId && (
-                  <button onClick={() => { setMenuEditId(null); setMenuForm({ category: 'cafe', name: '', description: '', price: '', imageUrl: '', order: 0 }); }}
+                  <button onClick={() => { setMenuEditId(null); setMenuForm({ category: 'alfajor', name: '', description: '', price: '', imageUrl: '', order: 0 }); }}
                     style={{ background: 'none', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-muted)', padding: '0.7rem 1.25rem', borderRadius: '10px', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem' }}>
                     Cancelar
                   </button>
@@ -2092,24 +2228,29 @@ export default function AdminClient({ events }: { events: Event[] }) {
               </div>
             </div>
 
-            {/* ── Lista de ítems ── */}
-            {(['cafe', 'comida', 'tragos'] as const).map(cat => {
+            {/* ── Lista de ítems por categoría ── */}
+            {(['alfajor', 'vegano', 'no_vegano', 'bebida', 'trago'] as const).map(cat => {
               const items = menuItems.filter(i => i.category === cat);
               if (items.length === 0) return null;
-              const catLabel: Record<string, string> = { cafe: 'Café', comida: 'Comida', tragos: 'Tragos' };
+              const catLabel: Record<string, string> = { alfajor: '🍫 Alfajores', vegano: '🌿 Vegano', no_vegano: '🥪 No Vegano', bebida: '☕ Bebidas', trago: '🍹 Tragos' };
               return (
                 <div key={cat}>
                   <h4 style={{ fontSize: '1rem', marginBottom: '1rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '2px' }}>{catLabel[cat]}</h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     {items.map(item => (
-                      <div key={item.id} className="glass-card" style={{ padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', border: '1px solid rgba(255,255,255,0.07)' }}>
-                        <div style={{ flex: 1 }}>
+                      <div key={item.id} className="glass-card" style={{ padding: '0.75rem 1rem', display: 'flex', alignItems: 'center', gap: '1rem', border: '1px solid rgba(255,255,255,0.07)', flexWrap: 'wrap' }}>
+                        {item.imageUrl && (
+                          <div style={{ width: '56px', height: '56px', borderRadius: '8px', overflow: 'hidden', flexShrink: 0 }}>
+                            <img src={item.imageUrl} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          </div>
+                        )}
+                        <div style={{ flex: 1, minWidth: '120px' }}>
                           <div style={{ fontWeight: 600 }}>{item.name}</div>
                           {item.description && <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{item.description}</div>}
                         </div>
                         <div style={{ color: 'var(--neon-cyan)', fontWeight: 600, whiteSpace: 'nowrap' }}>${item.price}</div>
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <button onClick={() => { setMenuEditId(item.id); setMenuForm({ category: item.category, name: item.name, description: item.description, price: String(item.price), imageUrl: item.imageUrl, order: item.order }); }}
+                          <button onClick={() => { setMenuEditId(item.id); setMenuForm({ category: item.category, name: item.name, description: item.description, price: String(item.price), imageUrl: item.imageUrl, order: item.order }); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                             style={{ background: 'rgba(0,255,255,0.1)', border: '1px solid rgba(0,255,255,0.2)', color: 'var(--neon-cyan)', padding: '0.3rem 0.7rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem' }}>
                             Editar
                           </button>

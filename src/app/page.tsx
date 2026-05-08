@@ -12,28 +12,29 @@ export default async function Home() {
   const settingsMap: Record<string, string> = {};
   for (const s of settings) settingsMap[s.key] = s.value;
 
-  const horarioRows = DIAS
-    .map(dia => ({ dia, label: DIA_LABELS[dia], value: settingsMap[`horario_${dia}`] ?? '' }))
-    .filter(r => r.value && r.value !== 'cerrado');
-  const alfajores = [
-    { name: 'Banana Split', desc: 'Tapas suaves de vainilla con dulce de leche cremoso y bañado en chocolate blanco. La versión Kerop del clásico de toda la vida', img: '/img/alfajores-1.jpg' },
-    { name: 'Trufa de Chocolate al Ron', desc: 'Masa intensa de cacao con relleno tipo trufa y toque de ron. Bañado en chocolate negro con granas', img: '/img/alfajores-2.jpg' },
-    { name: 'Baileys', desc: 'Masa de cacao oscuro rellena de crema de Baileys y bañado en chocolate blanco. El favorito de la casa', img: '/img/alfajores-3.jpg' },
-    { name: 'Caramelo Salado', desc: 'Doble masa de chocolate con un corazón de caramelo salado bien generoso, bañado en chocolate semiamargo', img: '/img/alfajores-4.jpg' },
-  ];
+  const allMenuItems = await prisma.menuItem.findMany({ where: { available: true }, orderBy: { order: 'asc' } });
+  const alfajores = allMenuItems.filter(i => i.category === 'alfajor');
+  const vegano = allMenuItems.filter(i => i.category === 'vegano');
+  const noVegano = allMenuItems.filter(i => i.category === 'no_vegano');
+  const bebidas = allMenuItems.filter(i => i.category === 'bebida');
+  const tragos = allMenuItems.filter(i => i.category === 'trago');
 
-  const salados = [
-    { name: 'Sándwich de Palta', desc: 'Pan árabe artesanal recién horneado con palta machacada, queso fundido y una pizca de morrón. Acompaña perfecto con limonada', img: '/img/cocina-autor-1.jpg' },
-    { name: 'Tarta de Puerros', desc: 'Tarta individual de masa quebrada con relleno cremoso de puerros y queso gratinado al horno', img: '/img/cocina-autor-2.jpg' },
-    { name: 'Sándwich Jamón & Cheddar', desc: 'Pan brioche con semillas, fetas generosas de jamón cocido y cheddar derretido. Clásico bien hecho', img: '/img/cocina-autor-3.jpg' },
-    { name: 'Focaccia con Jamón Crudo', desc: 'Focaccia casera con semillas, jamón crudo y rúcula fresca. Ideal para acompañar el café de la tarde', img: '/img/cocina-autor-4.jpg' },
-  ];
-
-  const bebidas = [
-    { name: 'Café de Especialidad', desc: 'Espresso, Flat White o Latte con granos seleccionados y latte art en cada taza', img: '/img/cafe-especialidad.jpg' },
-    { name: 'Jugos Naturales', desc: 'Jugo de naranja recién exprimido y limonadas frescas para acompañar', img: '/img/jugos-naturales.jpg' },
-    { name: 'Coctelería & Tragos', desc: 'Tragos de autor y clásicos preparados en barra. Ideales para la tarde y el after', img: '/img/tragos.jpg' },
-  ];
+  // Group consecutive days with same horario
+  const rawHorario = DIAS.map(dia => ({ dia, label: DIA_LABELS[dia], value: settingsMap[`horario_${dia}`] ?? '' }));
+  const horarioGroups: { label: string; value: string }[] = [];
+  let i = 0;
+  while (i < rawHorario.length) {
+    const current = rawHorario[i];
+    if (!current.value || current.value === 'cerrado') { i++; continue; }
+    let j = i + 1;
+    while (j < rawHorario.length && rawHorario[j].value === current.value) j++;
+    const groupDays = rawHorario.slice(i, j);
+    const label = groupDays.length === 1
+      ? groupDays[0].label
+      : `${groupDays[0].label}–${groupDays[groupDays.length - 1].label}`;
+    horarioGroups.push({ label, value: current.value });
+    i = j;
+  }
 
   return (
     <main>
@@ -61,7 +62,6 @@ export default async function Home() {
               </div>
               <div>
                 <p style={{ color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '4px', fontSize: '0.8rem' }}>Pérez Castellano 1495 · Ciudad Vieja</p>
-                <p style={{ color: 'var(--neon-pink)', fontSize: '0.9rem', marginTop: '0.25rem' }}>Café & Tattoo · Mar–Dom</p>
               </div>
             </div>
 
@@ -85,8 +85,8 @@ export default async function Home() {
             <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>☕</div>
             <h3 style={{ fontSize: '1.3rem', marginBottom: '1rem' }}>Horarios</h3>
             <div style={{ color: 'var(--text-muted)', lineHeight: 2, fontSize: '0.95rem' }}>
-              {horarioRows.map(r => (
-                <p key={r.dia}><span style={{ color: 'white' }}>{r.label}</span> {r.value}</p>
+              {horarioGroups.map((g, idx) => (
+                <p key={idx}><span style={{ color: 'white' }}>{g.label}</span> {g.value}</p>
               ))}
             </div>
             <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', margin: '1.25rem 0' }} />
@@ -145,14 +145,21 @@ export default async function Home() {
 
           <div className="grid-3">
             {alfajores.map((item, i) => (
-              <div key={i} className={`glass-card reveal reveal-delay-${i + 1}`} style={{ padding: 0, overflow: 'hidden' }}>
-                <div style={{ height: '220px', position: 'relative', overflow: 'hidden' }}>
-                  <Image src={item.img} alt={item.name} fill style={{ objectFit: 'cover' }} className="card-img" />
-                  <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 60%)' }} />
-                  <span className="text-pink" style={{ position: 'absolute', bottom: '0.75rem', left: '1rem', fontFamily: 'var(--font-outfit)', fontWeight: 700, fontSize: '1.1rem' }}>{item.name}</span>
-                </div>
+              <div key={item.id} className={`glass-card reveal reveal-delay-${Math.min(i + 1, 5)}`} style={{ padding: 0, overflow: 'hidden' }}>
+                {item.imageUrl ? (
+                  <div style={{ height: '220px', position: 'relative', overflow: 'hidden' }}>
+                    <Image src={item.imageUrl} alt={item.name} fill style={{ objectFit: 'cover' }} className="card-img" />
+                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 60%)' }} />
+                    <span className="text-pink" style={{ position: 'absolute', bottom: '0.75rem', left: '1rem', fontFamily: 'var(--font-outfit)', fontWeight: 700, fontSize: '1.1rem' }}>{item.name}</span>
+                  </div>
+                ) : (
+                  <div style={{ padding: '1.25rem 1.5rem 0.5rem' }}>
+                    <h4 className="text-pink" style={{ fontSize: '1.1rem' }}>{item.name}</h4>
+                  </div>
+                )}
                 <div style={{ padding: '1.25rem 1.5rem' }}>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: 1.7 }}>{item.desc}</p>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: 1.7 }}>{item.description}</p>
+                  {item.price > 0 && <p style={{ color: 'var(--neon-pink)', fontSize: '0.9rem', marginTop: '0.5rem' }}>${item.price}</p>}
                 </div>
               </div>
             ))}
@@ -160,55 +167,107 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* ─── VEGANO & SALADOS ─── */}
-      <section style={{ padding: '4rem 0 6rem', position: 'relative' }}>
-        <div className="floating-blob" style={{ position: 'absolute', bottom: '10%', right: '-5%', width: '350px', height: '350px', background: 'var(--neon-green)', filter: 'blur(130px)', opacity: 0.07, zIndex: 0 }} />
-        <div className="container" style={{ position: 'relative', zIndex: 1 }}>
-          <div className="reveal" style={{ marginBottom: '3.5rem' }}>
-            <p className="text-green" style={{ textTransform: 'uppercase', letterSpacing: '4px', fontSize: '0.85rem', marginBottom: '0.75rem' }}>Cocina de Autor</p>
-            <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)' }}>Brunch & Salados</h2>
-            <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>Sándwiches y tartas hechas en casa, con panes artesanales del día.</p>
-          </div>
-          <div className="grid-3">
-            {salados.map((item, i) => (
-              <div key={i} className={`glass-card reveal reveal-delay-${Math.min(i + 1, 5)}`} style={{ padding: 0, overflow: 'hidden' }}>
-                <div style={{ height: '220px', position: 'relative', overflow: 'hidden' }}>
-                  <Image src={item.img} alt={item.name} fill style={{ objectFit: 'cover' }} className="card-img" />
-                  <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 60%)' }} />
-                  <span className="text-green" style={{ position: 'absolute', bottom: '0.75rem', left: '1rem', fontFamily: 'var(--font-outfit)', fontWeight: 700, fontSize: '1.1rem' }}>{item.name}</span>
+      {/* ─── VEGANO ─── */}
+      {vegano.length > 0 && (
+        <section style={{ padding: '4rem 0 3rem', position: 'relative' }}>
+          <div className="floating-blob" style={{ position: 'absolute', bottom: '10%', right: '-5%', width: '350px', height: '350px', background: 'var(--neon-green)', filter: 'blur(130px)', opacity: 0.07, zIndex: 0 }} />
+          <div className="container" style={{ position: 'relative', zIndex: 1 }}>
+            <div className="reveal" style={{ marginBottom: '3.5rem' }}>
+              <p className="text-green" style={{ textTransform: 'uppercase', letterSpacing: '4px', fontSize: '0.85rem', marginBottom: '0.75rem' }}>Cocina de Autor</p>
+              <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)' }}>🌱 Opciones Veganas</h2>
+              <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>100% plant-based, hechas en casa.</p>
+            </div>
+            <div className="grid-3">
+              {vegano.map((item, i) => (
+                <div key={item.id} className={`glass-card reveal reveal-delay-${Math.min(i + 1, 5)}`} style={{ padding: 0, overflow: 'hidden' }}>
+                  {item.imageUrl ? (
+                    <div style={{ height: '220px', position: 'relative', overflow: 'hidden' }}>
+                      <Image src={item.imageUrl} alt={item.name} fill style={{ objectFit: 'cover' }} className="card-img" />
+                      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 60%)' }} />
+                      <span className="text-green" style={{ position: 'absolute', bottom: '0.75rem', left: '1rem', fontFamily: 'var(--font-outfit)', fontWeight: 700, fontSize: '1.1rem' }}>{item.name}</span>
+                    </div>
+                  ) : (
+                    <div style={{ padding: '1.25rem 1.5rem 0.5rem' }}>
+                      <h4 className="text-green" style={{ fontSize: '1.1rem' }}>{item.name}</h4>
+                    </div>
+                  )}
+                  <div style={{ padding: '1.25rem 1.5rem' }}>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: 1.7 }}>{item.description}</p>
+                    {item.price > 0 && <p style={{ color: 'var(--neon-green)', fontSize: '0.9rem', marginTop: '0.5rem' }}>${item.price}</p>}
+                  </div>
                 </div>
-                <div style={{ padding: '1.25rem 1.5rem' }}>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: 1.7 }}>{item.desc}</p>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
-      {/* ─── CAFÉ ─── */}
-      <section style={{ padding: '4rem 0 6rem' }}>
-        <div className="container">
-          <div className="reveal" style={{ marginBottom: '3.5rem' }}>
-            <p className="text-cyan" style={{ textTransform: 'uppercase', letterSpacing: '4px', fontSize: '0.85rem', marginBottom: '0.75rem' }}>Café de Especialidad</p>
-            <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)' }}>Bebidas</h2>
-            <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>Granos de origen seleccionados. Preparación de autor.</p>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2rem' }}>
-            {bebidas.map((item, i) => (
-              <div key={i} className={`glass-card reveal reveal-delay-${i + 1}`} style={{ display: 'flex', gap: '1.25rem', alignItems: 'center' }}>
-                <div style={{ width: '80px', height: '80px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0, border: '2px solid rgba(0,255,255,0.3)', position: 'relative' }}>
-                  <Image src={item.img} alt={item.name} fill style={{ objectFit: 'cover' }} />
+      {/* ─── NO VEGANO ─── */}
+      {noVegano.length > 0 && (
+        <section style={{ padding: '3rem 0 6rem', position: 'relative' }}>
+          <div className="container" style={{ position: 'relative', zIndex: 1 }}>
+            <div className="reveal" style={{ marginBottom: '3.5rem' }}>
+              <p className="text-green" style={{ textTransform: 'uppercase', letterSpacing: '4px', fontSize: '0.85rem', marginBottom: '0.75rem' }}>Cocina de Autor</p>
+              <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)' }}>🥪 Brunch & Salados</h2>
+              <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>Sándwiches y tartas hechas en casa, con panes artesanales del día.</p>
+            </div>
+            <div className="grid-3">
+              {noVegano.map((item, i) => (
+                <div key={item.id} className={`glass-card reveal reveal-delay-${Math.min(i + 1, 5)}`} style={{ padding: 0, overflow: 'hidden' }}>
+                  {item.imageUrl ? (
+                    <div style={{ height: '220px', position: 'relative', overflow: 'hidden' }}>
+                      <Image src={item.imageUrl} alt={item.name} fill style={{ objectFit: 'cover' }} className="card-img" />
+                      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 60%)' }} />
+                      <span className="text-green" style={{ position: 'absolute', bottom: '0.75rem', left: '1rem', fontFamily: 'var(--font-outfit)', fontWeight: 700, fontSize: '1.1rem' }}>{item.name}</span>
+                    </div>
+                  ) : (
+                    <div style={{ padding: '1.25rem 1.5rem 0.5rem' }}>
+                      <h4 className="text-green" style={{ fontSize: '1.1rem' }}>{item.name}</h4>
+                    </div>
+                  )}
+                  <div style={{ padding: '1.25rem 1.5rem' }}>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: 1.7 }}>{item.description}</p>
+                    {item.price > 0 && <p style={{ color: 'var(--neon-green)', fontSize: '0.9rem', marginTop: '0.5rem' }}>${item.price}</p>}
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-cyan" style={{ fontSize: '1.15rem', marginBottom: '0.4rem' }}>{item.name}</h4>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: 1.6 }}>{item.desc}</p>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
+
+      {/* ─── BEBIDAS ─── */}
+      {(bebidas.length > 0 || tragos.length > 0) && (
+        <section style={{ padding: '4rem 0 6rem' }}>
+          <div className="container">
+            <div className="reveal" style={{ marginBottom: '3.5rem' }}>
+              <p className="text-cyan" style={{ textTransform: 'uppercase', letterSpacing: '4px', fontSize: '0.85rem', marginBottom: '0.75rem' }}>Café de Especialidad & Barra</p>
+              <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)' }}>Bebidas</h2>
+              <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>Granos de origen seleccionados. Tragos de autor.</p>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2rem' }}>
+              {[...bebidas, ...tragos].map((item, i) => (
+                <div key={item.id} className={`glass-card reveal reveal-delay-${Math.min(i + 1, 5)}`} style={{ display: 'flex', gap: '1.25rem', alignItems: 'center' }}>
+                  {item.imageUrl ? (
+                    <div style={{ width: '80px', height: '80px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0, border: '2px solid rgba(0,255,255,0.3)', position: 'relative' }}>
+                      <Image src={item.imageUrl} alt={item.name} fill style={{ objectFit: 'cover' }} />
+                    </div>
+                  ) : (
+                    <div style={{ width: '80px', height: '80px', borderRadius: '50%', flexShrink: 0, border: '2px solid rgba(0,255,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem' }}>
+                      {item.category === 'trago' ? '🍹' : '☕'}
+                    </div>
+                  )}
+                  <div>
+                    <h4 className="text-cyan" style={{ fontSize: '1.15rem', marginBottom: '0.4rem' }}>{item.name}</h4>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: 1.6 }}>{item.description}</p>
+                    {item.price > 0 && <p style={{ color: 'var(--neon-cyan)', fontSize: '0.85rem', marginTop: '0.4rem' }}>${item.price}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ─── SPEED DATING PROMO ─── */}
       <section style={{ padding: '4rem 0 6rem' }}>

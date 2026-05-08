@@ -85,7 +85,7 @@ model TatuadorContact {
 
 model MenuItem {
   id          String   @id @default(uuid())
-  category    String   // "cafe" | "comida" | "tragos"
+  category    String   // "alfajor" | "vegano" | "no_vegano" | "bebida" | "trago"
   name        String
   description String   @default("")
   price       Int      // en pesos uruguayos
