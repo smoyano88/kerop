@@ -76,12 +76,23 @@ export default function AdminClient({ events }: { events: Event[] }) {
   // PWA install prompt
   const [installPrompt, setInstallPrompt] = useState<any>(null);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [showInstallTip, setShowInstallTip] = useState(false);
   useEffect(() => {
     const handler = (e: any) => { e.preventDefault(); setInstallPrompt(e); };
     window.addEventListener('beforeinstallprompt', handler);
     if (window.matchMedia('(display-mode: standalone)').matches) setIsInstalled(true);
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
+
+  const handleInstall = async () => {
+    if (installPrompt) {
+      installPrompt.prompt();
+      const { outcome } = await installPrompt.userChoice;
+      if (outcome === 'accepted') { setInstallPrompt(null); setIsInstalled(true); }
+    } else {
+      setShowInstallTip(true);
+    }
+  };
 
   // Tatuadores State
   interface TatuadorAdmin { id: string; name: string; specialty: string; bio: string; phone: string; instagram: string; photoUrl: string; gallery: string[]; order: number; active: boolean; contacts: { id: string; createdAt: string }[]; }
@@ -939,8 +950,8 @@ export default function AdminClient({ events }: { events: Event[] }) {
             <span className="admin-nav-icon">🔑</span>
             <span className="admin-nav-label">Configuración</span>
           </div>
-          {installPrompt && !isInstalled && (
-            <div className="admin-nav-item" onClick={async () => { installPrompt.prompt(); const { outcome } = await installPrompt.userChoice; if (outcome === 'accepted') { setInstallPrompt(null); setIsInstalled(true); } }} style={{ marginTop: 'auto' }}>
+          {!isInstalled && (
+            <div className="admin-nav-item" onClick={handleInstall} style={{ marginTop: 'auto' }}>
               <span className="admin-nav-icon">📲</span>
               <span className="admin-nav-label">Instalar app</span>
             </div>
@@ -993,8 +1004,8 @@ export default function AdminClient({ events }: { events: Event[] }) {
             <span className="admin-nav-icon">⚙️</span>
             <span>Config</span>
           </div>
-          {installPrompt && !isInstalled && (
-            <div className="admin-mobile-nav-item" onClick={async () => { installPrompt.prompt(); const { outcome } = await installPrompt.userChoice; if (outcome === 'accepted') { setInstallPrompt(null); setIsInstalled(true); } }}>
+          {!isInstalled && (
+            <div className="admin-mobile-nav-item" onClick={handleInstall}>
               <span className="admin-nav-icon">📲</span>
               <span>Instalar</span>
             </div>
@@ -3048,6 +3059,26 @@ export default function AdminClient({ events }: { events: Event[] }) {
           </div>
         );
       })()}
+
+      {/* Modal instrucciones instalar PWA */}
+      {showInstallTip && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }} onClick={() => setShowInstallTip(false)}>
+          <div style={{ background: '#1a1a1a', border: '1px solid rgba(255,16,122,0.3)', borderRadius: '16px', padding: '2rem', maxWidth: '340px', width: '100%' }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ marginBottom: '1rem', fontSize: '1.1rem' }}>📲 Instalar app</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: 1.7, marginBottom: '1rem' }}>
+              <strong style={{ color: 'white' }}>En Chrome (Android):</strong><br />
+              Tocá los 3 puntos ⋮ arriba a la derecha → <em>"Agregar a pantalla de inicio"</em>
+            </p>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: 1.7, marginBottom: '1.5rem' }}>
+              <strong style={{ color: 'white' }}>En Safari (iPhone):</strong><br />
+              Tocá el ícono compartir <em>⬆</em> → <em>"Agregar a pantalla de inicio"</em>
+            </p>
+            <button onClick={() => setShowInstallTip(false)} style={{ width: '100%', padding: '0.75rem', background: 'var(--neon-pink)', border: 'none', borderRadius: '8px', color: 'white', fontWeight: 600, cursor: 'pointer' }}>
+              Entendido
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
