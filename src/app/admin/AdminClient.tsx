@@ -73,6 +73,16 @@ export default function AdminClient({ events }: { events: Event[] }) {
   const [activeTab, setActiveTab] = useState<'events' | 'create' | 'matches' | 'participants' | 'historico' | 'drinks' | 'tatuadores' | 'contenido' | 'password'>('events');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
+  // PWA install prompt
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [isInstalled, setIsInstalled] = useState(false);
+  useEffect(() => {
+    const handler = (e: any) => { e.preventDefault(); setInstallPrompt(e); };
+    window.addEventListener('beforeinstallprompt', handler);
+    if (window.matchMedia('(display-mode: standalone)').matches) setIsInstalled(true);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
   // Tatuadores State
   interface TatuadorAdmin { id: string; name: string; specialty: string; bio: string; phone: string; instagram: string; photoUrl: string; gallery: string[]; order: number; active: boolean; contacts: { id: string; createdAt: string }[]; }
   const [tatuadoresList, setTatuadoresList] = useState<TatuadorAdmin[]>([]);
@@ -929,6 +939,12 @@ export default function AdminClient({ events }: { events: Event[] }) {
             <span className="admin-nav-icon">🔑</span>
             <span className="admin-nav-label">Configuración</span>
           </div>
+          {installPrompt && !isInstalled && (
+            <div className="admin-nav-item" onClick={async () => { installPrompt.prompt(); const { outcome } = await installPrompt.userChoice; if (outcome === 'accepted') { setInstallPrompt(null); setIsInstalled(true); } }} style={{ marginTop: 'auto' }}>
+              <span className="admin-nav-icon">📲</span>
+              <span className="admin-nav-label">Instalar app</span>
+            </div>
+          )}
         </div>
         
         <div style={{ padding: '1rem', borderTop: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
@@ -977,6 +993,12 @@ export default function AdminClient({ events }: { events: Event[] }) {
             <span className="admin-nav-icon">⚙️</span>
             <span>Config</span>
           </div>
+          {installPrompt && !isInstalled && (
+            <div className="admin-mobile-nav-item" onClick={async () => { installPrompt.prompt(); const { outcome } = await installPrompt.userChoice; if (outcome === 'accepted') { setInstallPrompt(null); setIsInstalled(true); } }}>
+              <span className="admin-nav-icon">📲</span>
+              <span>Instalar</span>
+            </div>
+          )}
         </div>
       </div>
 
