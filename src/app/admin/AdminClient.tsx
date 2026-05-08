@@ -1110,27 +1110,29 @@ export default function AdminClient({ events }: { events: Event[] }) {
                         );
                       })()}
 
-                      {total > 0 && isExpanded && (
-                            <div style={{ width: '100%', borderRadius: '10px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', border: '1px solid rgba(255,255,255,0.07)', background: 'rgba(0,0,0,0.2)' }}>
-                              <table style={{ minWidth: '700px', width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                      {total > 0 && isExpanded && (() => {
+                        const identityOf = (r: { instagram?: string | null; firstName: string; lastName: string }) =>
+                          r.instagram ? r.instagram.toLowerCase().replace('@', '').trim() : `${r.firstName}_${r.lastName}`.toLowerCase().trim();
+                        const currentIdentities = new Set(ev.registrations.map(identityOf));
+                        return (
+                          <>
+                            {/* Desktop: tabla */}
+                            <div className="reg-table-desktop" style={{ width: '100%', borderRadius: '10px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', border: '1px solid rgba(255,255,255,0.07)', background: 'rgba(0,0,0,0.2)' }}>
+                              <table style={{ minWidth: '600px', width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
                                 <thead>
                                   <tr style={{ background: 'rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                                    <th style={{ padding: '0.6rem 0.8rem', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500, width: '40px' }}>#</th>
+                                    <th style={{ padding: '0.6rem 0.8rem', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500, width: '32px' }}>#</th>
                                     <th style={{ padding: '0.6rem 0.8rem', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500 }}>Nombre</th>
-                                    <th style={{ padding: '0.6rem 0.8rem', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500 }}>Género</th>
+                                    <th style={{ padding: '0.6rem 0.8rem', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500 }}>G</th>
                                     <th style={{ padding: '0.6rem 0.8rem', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500 }}>Trago</th>
                                     <th style={{ padding: '0.6rem 0.8rem', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500 }}>Registrado</th>
-                                    <th style={{ padding: '0.6rem 0.8rem', textAlign: 'center', color: 'var(--text-muted)', fontWeight: 500, width: '120px' }}>Pago</th>
-                                    <th style={{ padding: '0.6rem 0.8rem', textAlign: 'center', color: 'var(--text-muted)', fontWeight: 500, width: '60px' }}>Acción</th>
+                                    <th style={{ padding: '0.6rem 0.8rem', textAlign: 'center', color: 'var(--text-muted)', fontWeight: 500, width: '110px' }}>Pago</th>
+                                    <th style={{ padding: '0.6rem 0.8rem', textAlign: 'center', color: 'var(--text-muted)', fontWeight: 500, width: '60px' }}>⚡</th>
                                   </tr>
                                 </thead>
                                 <tbody>
                                   {ev.registrations.map((reg, idx) => {
                                     const allPriorPartners = repeatedMatchData[ev.id]?.[reg.id] || [];
-                                    // Filter to only partners who are also in this event
-                                    const identityOf = (r: { instagram?: string | null; firstName: string; lastName: string }) =>
-                                      r.instagram ? r.instagram.toLowerCase().replace('@', '').trim() : `${r.firstName}_${r.lastName}`.toLowerCase().trim();
-                                    const currentIdentities = new Set(ev.registrations.map(identityOf));
                                     const priorMatchHere = allPriorPartners.filter(p => currentIdentities.has(identityOf(p)));
                                     const hasPriorMatch = priorMatchHere.length > 0;
                                     return (
@@ -1149,52 +1151,24 @@ export default function AdminClient({ events }: { events: Event[] }) {
                                         )}
                                       </td>
                                       <td style={{ padding: '0.6rem 0.8rem', color: 'var(--text-muted)' }}>{reg.gender === 'Hombre' ? '👨' : '👩'}</td>
-                                      <td style={{ padding: '0.6rem 0.8rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }} title={reg.selectedDrink}>
-                                        <span style={{ 
-                                          background: drinkCatalog.find(d => d.name === reg.selectedDrink)?.isAlcoholic ? 'rgba(255,16,122,0.1)' : 'rgba(57,255,20,0.1)',
-                                          color: drinkCatalog.find(d => d.name === reg.selectedDrink)?.isAlcoholic ? 'var(--neon-pink)' : 'var(--neon-green)',
-                                          padding: '0.2rem 0.6rem',
-                                          borderRadius: '50px',
-                                          fontSize: '0.75rem',
-                                          border: `1px solid ${drinkCatalog.find(d => d.name === reg.selectedDrink)?.isAlcoholic ? 'rgba(255,16,122,0.2)' : 'rgba(57,255,20,0.2)'}`,
-                                        }}>
+                                      <td style={{ padding: '0.6rem 0.8rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '160px' }} title={reg.selectedDrink}>
+                                        <span style={{ background: drinkCatalog.find(d => d.name === reg.selectedDrink)?.isAlcoholic ? 'rgba(255,16,122,0.1)' : 'rgba(57,255,20,0.1)', color: drinkCatalog.find(d => d.name === reg.selectedDrink)?.isAlcoholic ? 'var(--neon-pink)' : 'var(--neon-green)', padding: '0.2rem 0.6rem', borderRadius: '50px', fontSize: '0.75rem', border: `1px solid ${drinkCatalog.find(d => d.name === reg.selectedDrink)?.isAlcoholic ? 'rgba(255,16,122,0.2)' : 'rgba(57,255,20,0.2)'}` }}>
                                           {reg.selectedDrink}
                                         </span>
                                       </td>
-                                      <td style={{ padding: '0.6rem 0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                                        {format(new Date(reg.createdAt), "dd/MM HH:mm")}
-                                      </td>
+                                      <td style={{ padding: '0.6rem 0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{format(new Date(reg.createdAt), "dd/MM HH:mm")}</td>
                                       <td style={{ padding: '0.4rem 0.8rem', textAlign: 'center' }}>
-                                        {reg.paid ? (
-                                          <span style={{ background: 'rgba(57,255,20,0.1)', color: 'var(--neon-green)', padding: '0.15rem 0.5rem', borderRadius: '50px', fontSize: '0.75rem', border: '1px solid rgba(57,255,20,0.2)', whiteSpace: 'nowrap' }}>
-                                            ✅ Pagado
-                                          </span>
-                                        ) : (
-                                          <span style={{ background: 'rgba(255,16,122,0.1)', color: 'var(--neon-pink)', padding: '0.15rem 0.5rem', borderRadius: '50px', fontSize: '0.75rem', border: '1px solid rgba(255,16,122,0.2)', whiteSpace: 'nowrap' }}>
-                                            ⏳ Pendiente
-                                          </span>
-                                        )}
+                                        {reg.paid
+                                          ? <span style={{ background: 'rgba(57,255,20,0.1)', color: 'var(--neon-green)', padding: '0.15rem 0.5rem', borderRadius: '50px', fontSize: '0.75rem', border: '1px solid rgba(57,255,20,0.2)', whiteSpace: 'nowrap' }}>✅ Pagado</span>
+                                          : <span style={{ background: 'rgba(255,16,122,0.1)', color: 'var(--neon-pink)', padding: '0.15rem 0.5rem', borderRadius: '50px', fontSize: '0.75rem', border: '1px solid rgba(255,16,122,0.2)', whiteSpace: 'nowrap' }}>⏳ Pendiente</span>
+                                        }
                                       </td>
                                       <td style={{ padding: '0.4rem 0.8rem', textAlign: 'center' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
                                           {!reg.paid && reg.paymentMethod === 'transfer' && (
-                                            <button
-                                              onClick={() => handleMarkAsPaid(reg.id, reg.firstName)}
-                                              style={{ background: 'rgba(57,255,20,0.15)', color: 'var(--neon-green)', border: '1px solid rgba(57,255,20,0.4)', borderRadius: '6px', fontSize: '0.75rem', padding: '0.25rem 0.5rem', cursor: 'pointer', whiteSpace: 'nowrap' }}
-                                              title="Confirmar pago por transferencia"
-                                            >
-                                              💰 Pagó
-                                            </button>
+                                            <button onClick={() => handleMarkAsPaid(reg.id, reg.firstName)} style={{ background: 'rgba(57,255,20,0.15)', color: 'var(--neon-green)', border: '1px solid rgba(57,255,20,0.4)', borderRadius: '6px', fontSize: '0.75rem', padding: '0.25rem 0.5rem', cursor: 'pointer', whiteSpace: 'nowrap' }} title="Confirmar pago por transferencia">💰</button>
                                           )}
-                                          <button
-                                            onClick={() => handleDeleteRegistration(reg.id, `${reg.firstName} ${reg.lastName}`)}
-                                            style={{ background: 'none', border: 'none', color: 'var(--neon-pink)', cursor: 'pointer', fontSize: '1.1rem', opacity: 0.7 }}
-                                            title="Eliminar inscripto"
-                                            onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
-                                            onMouseLeave={(e) => e.currentTarget.style.opacity = '0.7'}
-                                          >
-                                            🗑️
-                                          </button>
+                                          <button onClick={() => handleDeleteRegistration(reg.id, `${reg.firstName} ${reg.lastName}`)} style={{ background: 'none', border: 'none', color: 'var(--neon-pink)', cursor: 'pointer', fontSize: '1.1rem', opacity: 0.7 }} title="Eliminar inscripto" onMouseEnter={e => e.currentTarget.style.opacity = '1'} onMouseLeave={e => e.currentTarget.style.opacity = '0.7'}>🗑️</button>
                                         </div>
                                       </td>
                                     </tr>
@@ -1203,7 +1177,46 @@ export default function AdminClient({ events }: { events: Event[] }) {
                                 </tbody>
                               </table>
                             </div>
-                          )}
+
+                            {/* Mobile: cards */}
+                            <div className="reg-cards-mobile" style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                              {ev.registrations.map((reg, idx) => {
+                                const allPriorPartners = repeatedMatchData[ev.id]?.[reg.id] || [];
+                                const priorMatchHere = allPriorPartners.filter(p => currentIdentities.has(identityOf(p)));
+                                const hasPriorMatch = priorMatchHere.length > 0;
+                                const isAlco = drinkCatalog.find(d => d.name === reg.selectedDrink)?.isAlcoholic;
+                                return (
+                                  <div key={reg.id} style={{ background: hasPriorMatch ? 'rgba(255,221,0,0.1)' : 'rgba(255,255,255,0.03)', border: hasPriorMatch ? '1px solid rgba(255,221,0,0.35)' : '1px solid rgba(255,255,255,0.07)', borderRadius: '10px', padding: '0.75rem 1rem', boxShadow: hasPriorMatch ? 'inset 3px 0 0 #ffdd00' : undefined }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.4rem' }}>
+                                      <div style={{ fontWeight: 600, fontSize: '0.95rem', color: hasPriorMatch ? 'var(--neon-pink)' : 'white' }}>
+                                        {idx + 1}. {reg.firstName} {reg.lastName}
+                                        {hasPriorMatch && <span style={{ marginLeft: '0.4rem' }}>💞</span>}
+                                      </div>
+                                      <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                        {!reg.paid && reg.paymentMethod === 'transfer' && (
+                                          <button onClick={() => handleMarkAsPaid(reg.id, reg.firstName)} style={{ background: 'rgba(57,255,20,0.15)', color: 'var(--neon-green)', border: '1px solid rgba(57,255,20,0.4)', borderRadius: '6px', fontSize: '0.75rem', padding: '0.25rem 0.5rem', cursor: 'pointer' }}>💰 Pagó</button>
+                                        )}
+                                        <button onClick={() => handleDeleteRegistration(reg.id, `${reg.firstName} ${reg.lastName}`)} style={{ background: 'none', border: 'none', color: 'var(--neon-pink)', cursor: 'pointer', fontSize: '1rem' }}>🗑️</button>
+                                      </div>
+                                    </div>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', alignItems: 'center' }}>
+                                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{reg.gender === 'Hombre' ? '👨' : '👩'} {reg.gender}</span>
+                                      <span style={{ background: isAlco ? 'rgba(255,16,122,0.1)' : 'rgba(57,255,20,0.1)', color: isAlco ? 'var(--neon-pink)' : 'var(--neon-green)', padding: '0.1rem 0.5rem', borderRadius: '50px', fontSize: '0.75rem', border: `1px solid ${isAlco ? 'rgba(255,16,122,0.2)' : 'rgba(57,255,20,0.2)'}` }}>
+                                        {reg.selectedDrink || '—'}
+                                      </span>
+                                      {reg.paid
+                                        ? <span style={{ background: 'rgba(57,255,20,0.1)', color: 'var(--neon-green)', padding: '0.1rem 0.5rem', borderRadius: '50px', fontSize: '0.75rem', border: '1px solid rgba(57,255,20,0.2)' }}>✅ Pagado</span>
+                                        : <span style={{ background: 'rgba(255,16,122,0.1)', color: 'var(--neon-pink)', padding: '0.1rem 0.5rem', borderRadius: '50px', fontSize: '0.75rem', border: '1px solid rgba(255,16,122,0.2)' }}>⏳ Pendiente</span>
+                                      }
+                                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>{format(new Date(reg.createdAt), "dd/MM HH:mm")}</span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
                   );
                 })}
@@ -1229,7 +1242,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
                 </select>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div>
                   <label className="input-label">Fecha</label>
                   <input type="date" name="date" required className="input-field" />
@@ -1249,7 +1262,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div>
                   <label className="input-label">Rango Etario</label>
                   <input type="text" name="ageRange" required className="input-field" placeholder="Ej: 25 a 35 años" />
@@ -1274,7 +1287,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div>
                   <label className="input-label">N° de Grupo (cuaderno)</label>
                   <input
@@ -1495,9 +1508,12 @@ export default function AdminClient({ events }: { events: Event[] }) {
           // Render de una matriz cruzada
           const renderMatrix = (rowParticipants: Registration[], colParticipants: Registration[], title: string) => (
             <div style={{ marginBottom: '2rem' }}>
-              <h4 style={{ color: 'var(--neon-pink)', marginBottom: '1rem', fontSize: '1.1rem' }}>{title}</h4>
-              <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: `${colParticipants.length * 90 + 180}px` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                <h4 style={{ color: 'var(--neon-pink)', margin: 0, fontSize: '1.1rem' }}>{title}</h4>
+                <span className="matrix-scroll-hint" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'none' }}>← deslizá →</span>
+              </div>
+              <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: `${colParticipants.length * 80 + 150}px` }}>
                   <thead>
                     <tr>
                       <th style={{ padding: '0.75rem', textAlign: 'left', borderBottom: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,16,122,0.08)', color: 'var(--neon-pink)', fontSize: '0.8rem', position: 'sticky', left: 0, zIndex: 2, minWidth: '170px' }}>
@@ -1770,7 +1786,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
                         </div>
                       </div>
                     ) : (
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                      <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                         <div>
                           <div style={{ textAlign: 'center', marginBottom: '0.75rem', padding: '0.5rem', background: 'rgba(0,150,255,0.08)', borderRadius: '8px', border: '1px solid rgba(0,150,255,0.15)' }}>
                             <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'rgba(100,180,255,1)', letterSpacing: '0.5px' }}>🙋‍♂️ HOMBRES</span>
@@ -1879,11 +1895,11 @@ export default function AdminClient({ events }: { events: Event[] }) {
               <h3 className="text-cyan" style={{ fontSize: '1.3rem', marginBottom: '1.25rem' }}>
                 {tatEditId ? '✏️ Editar Tatuador' : '➕ Agregar Tatuador'}
               </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
+              <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
                 <input className="input-field" placeholder="Nombre *" value={tatForm.name} onChange={e => setTatForm(f => ({ ...f, name: e.target.value }))} />
                 <input className="input-field" placeholder="Especialidad * (ej: Blackwork · Fine Line)" value={tatForm.specialty} onChange={e => setTatForm(f => ({ ...f, specialty: e.target.value }))} />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
+              <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
                 <input className="input-field" placeholder="Teléfono WA * (ej: 59899123456)" value={tatForm.phone} onChange={e => setTatForm(f => ({ ...f, phone: e.target.value }))} />
                 <input className="input-field" placeholder="Instagram (ej: @maikdart)" value={tatForm.instagram} onChange={e => setTatForm(f => ({ ...f, instagram: e.target.value }))} />
               </div>
@@ -2355,6 +2371,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
                         ref={scanInputRef}
                         type="file"
                         accept="image/*"
+                        capture="environment"
                         style={{ display: 'none' }}
                         onChange={e => { const f = e.target.files?.[0]; if (f) handleScanImage(f); }}
                       />
@@ -2376,11 +2393,12 @@ export default function AdminClient({ events }: { events: Event[] }) {
                         </button>
                       </div>
 
-                      {/* Tabla de participantes detectados */}
-                      <div style={{ overflowX: 'auto', marginBottom: '1.25rem' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                      {/* Participantes detectados — tabla desktop / cards mobile */}
+                      {/* Desktop */}
+                      <div className="reg-table-desktop" style={{ overflowX: 'auto', marginBottom: '1.25rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.07)' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', minWidth: '480px' }}>
                           <thead>
-                            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)' }}>
                               {['Nombre', 'Género', 'Teléfono', 'Bebida', 'Grupos'].map(h => (
                                 <th key={h} style={{ textAlign: 'left', padding: '0.5rem 0.75rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
                               ))}
@@ -2389,21 +2407,39 @@ export default function AdminClient({ events }: { events: Event[] }) {
                           <tbody>
                             {scanResult.participantes.map((p, i) => (
                               <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                <td style={{ padding: '0.6rem 0.75rem', color: 'white' }}>{p.firstName} {p.lastName}</td>
-                                <td style={{ padding: '0.6rem 0.75rem', color: p.gender === 'Mujer' ? 'var(--neon-pink)' : 'var(--neon-cyan)' }}>{p.gender}</td>
-                                <td style={{ padding: '0.6rem 0.75rem', color: 'var(--text-muted)' }}>{p.phone || '—'}</td>
-                                <td style={{ padding: '0.6rem 0.75rem', color: 'var(--text-muted)' }}>{p.selectedDrink || '—'}</td>
+                                <td style={{ padding: '0.6rem 0.75rem', color: 'white', whiteSpace: 'nowrap' }}>{p.firstName} {p.lastName}</td>
+                                <td style={{ padding: '0.6rem 0.75rem', color: p.gender === 'Mujer' ? 'var(--neon-pink)' : 'var(--neon-cyan)', whiteSpace: 'nowrap' }}>{p.gender}</td>
+                                <td style={{ padding: '0.6rem 0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{p.phone || '—'}</td>
+                                <td style={{ padding: '0.6rem 0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{p.selectedDrink || '—'}</td>
                                 <td style={{ padding: '0.6rem 0.75rem' }}>
                                   {p.grupos.map(g => (
-                                    <span key={g} style={{ background: 'rgba(0,255,255,0.1)', color: 'var(--neon-cyan)', border: '1px solid rgba(0,255,255,0.2)', borderRadius: '4px', padding: '0.1rem 0.4rem', fontSize: '0.75rem', marginRight: '0.3rem' }}>
-                                      G{g}
-                                    </span>
+                                    <span key={g} style={{ background: 'rgba(0,255,255,0.1)', color: 'var(--neon-cyan)', border: '1px solid rgba(0,255,255,0.2)', borderRadius: '4px', padding: '0.1rem 0.4rem', fontSize: '0.75rem', marginRight: '0.3rem' }}>G{g}</span>
                                   ))}
                                 </td>
                               </tr>
                             ))}
                           </tbody>
                         </table>
+                      </div>
+                      {/* Mobile cards */}
+                      <div className="reg-cards-mobile" style={{ flexDirection: 'column', gap: '0.5rem', marginBottom: '1.25rem' }}>
+                        {scanResult.participantes.map((p, i) => (
+                          <div key={i} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '10px', padding: '0.75rem 1rem' }}>
+                            <div style={{ fontWeight: 600, color: p.gender === 'Mujer' ? 'var(--neon-pink)' : 'var(--neon-cyan)', marginBottom: '0.35rem' }}>
+                              {p.firstName} {p.lastName}
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', fontSize: '0.8rem', alignItems: 'center' }}>
+                              <span style={{ color: 'var(--text-muted)' }}>{p.gender === 'Mujer' ? '👩' : '👨'} {p.gender}</span>
+                              {p.phone && <span style={{ color: 'var(--text-muted)' }}>📱 {p.phone}</span>}
+                              {p.selectedDrink && <span style={{ color: 'var(--text-muted)' }}>🍹 {p.selectedDrink}</span>}
+                              <span style={{ marginLeft: 'auto', display: 'flex', gap: '0.25rem' }}>
+                                {p.grupos.map(g => (
+                                  <span key={g} style={{ background: 'rgba(0,255,255,0.1)', color: 'var(--neon-cyan)', border: '1px solid rgba(0,255,255,0.2)', borderRadius: '4px', padding: '0.1rem 0.4rem', fontSize: '0.75rem' }}>G{g}</span>
+                                ))}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
                       </div>
 
                       <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -2741,7 +2777,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
                         </span>
                         <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>·</span>
                         <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{ev.ageRange}</span>
-                        <span style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
+                        <span style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
                           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.04)', padding: '0.2rem 0.55rem', borderRadius: '6px' }}>
                             👥 {regs.length}
                           </span>
@@ -2806,7 +2842,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
                 <button onClick={() => setAddParticipantEventId(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '1.5rem', cursor: 'pointer', lineHeight: 1 }}>×</button>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
+              <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
                 <input className="input-field" placeholder="Nombre" value={addPartForm.firstName} onChange={e => setAddPartForm(f => ({ ...f, firstName: e.target.value }))} />
                 <input className="input-field" placeholder="Apellido" value={addPartForm.lastName} onChange={e => setAddPartForm(f => ({ ...f, lastName: e.target.value }))} />
               </div>
@@ -2824,7 +2860,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
                 )}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
+              <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
                 <input className="input-field" placeholder="Instagram (@usuario)" value={addPartForm.instagram} onChange={e => setAddPartForm(f => ({ ...f, instagram: e.target.value }))} />
                 <input className="input-field" placeholder="Teléfono (+598...)" value={addPartForm.phone} onChange={e => setAddPartForm(f => ({ ...f, phone: e.target.value }))} />
               </div>
