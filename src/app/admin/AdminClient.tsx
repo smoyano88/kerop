@@ -2208,13 +2208,13 @@ export default function AdminClient({ events }: { events: Event[] }) {
               <div style={{ display: 'flex', gap: '1rem' }}>
                 <button
                   onClick={handleSaveMenuItem}
-                  disabled={menuLoading || menuImgUploading || !menuForm.name.trim() || !menuForm.price}
+                  disabled={menuLoading || menuImgUploading || !menuForm.name.trim()}
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
                     background: 'rgba(255,16,122,0.15)', border: '1px solid rgba(255,16,122,0.5)',
                     color: 'var(--neon-pink)', padding: '0.7rem 1.5rem', borderRadius: '10px',
                     cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem',
-                    opacity: (menuLoading || menuImgUploading || !menuForm.name.trim() || !menuForm.price) ? 0.5 : 1,
+                    opacity: (menuLoading || menuImgUploading || !menuForm.name.trim()) ? 0.5 : 1,
                   }}
                 >
                   {menuLoading ? '⏳ Guardando...' : menuEditId ? '✓ Actualizar' : '+ Agregar'}
@@ -2248,7 +2248,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
                           <div style={{ fontWeight: 600 }}>{item.name}</div>
                           {item.description && <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{item.description}</div>}
                         </div>
-                        <div style={{ color: 'var(--neon-cyan)', fontWeight: 600, whiteSpace: 'nowrap' }}>${item.price}</div>
+                        {item.price > 0 && <div style={{ color: 'var(--neon-cyan)', fontWeight: 600, whiteSpace: 'nowrap' }}>${item.price}</div>}
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
                           <button onClick={() => { setMenuEditId(item.id); setMenuForm({ category: item.category, name: item.name, description: item.description, price: String(item.price), imageUrl: item.imageUrl, order: item.order }); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                             style={{ background: 'rgba(0,255,255,0.1)', border: '1px solid rgba(0,255,255,0.2)', color: 'var(--neon-cyan)', padding: '0.3rem 0.7rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem' }}>
