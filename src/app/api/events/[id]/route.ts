@@ -16,6 +16,7 @@ export async function PATCH(
 
     const data: Record<string, unknown> = {};
     if (typeof body.closed === 'boolean') data.closed = body.closed;
+    if (typeof body.matchesDone === 'boolean') data.matchesDone = body.matchesDone;
 
     await prisma.event.update({ where: { id }, data });
     return NextResponse.json({ success: true });

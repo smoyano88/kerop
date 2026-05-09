@@ -24,6 +24,7 @@ model Event {
   mpEnabled       Boolean        @default(true)
   archived        Boolean        @default(false)
   closed          Boolean        @default(false)
+  matchesDone     Boolean        @default(false)
   registrations   Registration[]
   matchData       MatchData?
   createdAt       DateTime       @default(now())

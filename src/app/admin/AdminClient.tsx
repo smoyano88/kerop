@@ -60,6 +60,7 @@ interface Event {
   groupNumber?: number | null;
   archived?: boolean;
   closed?: boolean;
+  matchesDone?: boolean;
   registrations: Registration[];
   matchData?: { id: string; selections: Record<string, string[]> } | null;
 }
@@ -1560,14 +1561,14 @@ export default function AdminClient({ events }: { events: Event[] }) {
             return paidCount >= totalSpots;
           });
 
-          // Eventos pasados sin MatchData: tienen registrations cargadas pero sin matches
+          // Eventos pasados sin matches finalizados: tienen participantes pero matchesDone no está en true
           const archivedWithoutMatches = eventList.filter(ev =>
-            !ev.archived && !ev.matchData && ev.registrations.length > 0 &&
-            (ev.closed || (() => {
+            !ev.matchesDone && ev.registrations.length > 0 &&
+            (ev.closed || ev.archived || (() => {
               const isHomo = ev.type === 'Ellos y Ellos' || ev.type === 'Ellas y Ellas';
               return ev.registrations.filter(r => r.paid).length < (isHomo ? ev.spotsPerGender : ev.spotsPerGender * 2);
             })())
-          ).concat(eventList.filter(ev => ev.archived && !ev.matchData));
+          );
 
           const selectedEvent = matchEventId ? eventList.find(e => e.id === matchEventId) : null;
           const isArchivedEvent = selectedEvent?.archived ?? false;
@@ -1621,6 +1622,31 @@ export default function AdminClient({ events }: { events: Event[] }) {
               });
               await reloadEvents();
             } catch { setError('Error actualizando asistencia'); }
+          };
+
+          const handleConfirmMatches = async () => {
+            if (!matchEventId) return;
+            setMatchLoading(true);
+            try {
+              // Guardar selecciones
+              await fetch('/api/matches', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ eventId: matchEventId, selections: matchSelections, password: currentAdminPassword }),
+              });
+              // Marcar evento como matchesDone
+              await fetch(`/api/events/${matchEventId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ matchesDone: true, password: currentAdminPassword }),
+              });
+              showSuccess('✅ Matches guardados y evento cerrado');
+              setMatchEventId(null);
+              setMatchResults(null);
+              setMatchSelections({});
+              await reloadEvents();
+            } catch { setError('Error confirmando matches'); }
+            finally { setMatchLoading(false); }
           };
 
           const handleMatchear = async () => {
@@ -1921,6 +1947,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
                 };
 
                 return (
+                  <div>
                   <div className="glass-card" style={{ padding: '1.5rem', border: '1px solid rgba(57,255,20,0.2)' }}>
                     {/* Header */}
                     <div style={{ textAlign: 'center', marginBottom: '2rem', padding: '1.5rem', background: matchResults.totalMatches > 0 ? 'rgba(57,255,20,0.05)' : 'rgba(255,255,255,0.02)', borderRadius: '12px' }}>
@@ -1986,6 +2013,26 @@ export default function AdminClient({ events }: { events: Event[] }) {
                         </div>
                       </div>
                     )}
+                  </div>
+
+                  <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+                    <button
+                      onClick={handleConfirmMatches}
+                      disabled={matchLoading}
+                      style={{
+                        background: 'linear-gradient(135deg, #27ae60, #2ecc71)',
+                        color: 'white', border: 'none', padding: '1rem 3rem', borderRadius: '12px',
+                        fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer',
+                        boxShadow: '0 4px 20px rgba(39,174,96,0.4)',
+                        transition: 'all 0.3s', letterSpacing: '1px'
+                      }}
+                    >
+                      {matchLoading ? 'Guardando...' : '✅ Confirmar y cerrar evento'}
+                    </button>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '0.5rem' }}>
+                      El evento desaparecerá de esta sección y quedará en el historial
+                    </div>
+                  </div>
                   </div>
                 );
               })()}
