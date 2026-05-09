@@ -276,9 +276,10 @@ export default function AdminClient({ events }: { events: Event[] }) {
       });
       const data = await res.json();
       if (data.error) { setError(data.error); return; }
-      showSuccess(`✅ Importados ${data.created} registros en ${data.groups} grupos`);
+      showSuccess(`✅ Importados ${data.created} registros en ${data.groups} grupos${data.skipped ? ` (${data.skipped} ya existían)` : ''}`);
       setScanResult(null);
       setScanOpen(false);
+      await reloadEvents();
       await loadParticipants();
     } catch { setError('Error importando'); } finally { setImportLoading(false); }
   };

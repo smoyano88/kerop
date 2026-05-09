@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     // 1. Upsert eventos por groupNumber
     const groupMap: Record<number, string> = {}; // groupNumber -> eventId
 
-    for (const ev of eventosDetectados) {
+    for (const ev of eventosDetectados.filter(e => e.groupNumber != null && !isNaN(e.groupNumber))) {
       const existing = await prisma.event.findUnique({ where: { groupNumber: ev.groupNumber } });
       if (existing) {
         groupMap[ev.groupNumber] = existing.id;
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     }
 
     // 2. También asegurarse de que todos los grupos mencionados por participantes existan
-    const allGroups = [...new Set(participantes.flatMap(p => p.grupos))];
+    const allGroups = [...new Set(participantes.flatMap(p => p.grupos))].filter(gn => gn != null && !isNaN(gn));
     for (const gn of allGroups) {
       if (!groupMap[gn]) {
         const existing = await prisma.event.findUnique({ where: { groupNumber: gn } });
@@ -90,12 +90,27 @@ export async function POST(request: Request) {
       }
     }
 
-    // 3. Crear registros — uno por participante por grupo
+    // 3. Crear registros — uno por participante por grupo (sin duplicar)
     let created = 0;
+    let skipped = 0;
     for (const p of participantes) {
-      for (const gn of p.grupos) {
+      for (const gn of (p.grupos ?? []).filter(g => g != null && !isNaN(g))) {
         const eventId = groupMap[gn];
         if (!eventId) continue;
+
+        const existing = await prisma.registration.findFirst({
+          where: {
+            eventId,
+            firstName: { equals: p.firstName, mode: 'insensitive' },
+            lastName: { equals: p.lastName, mode: 'insensitive' },
+          },
+        });
+
+        if (existing) {
+          skipped++;
+          continue;
+        }
+
         await prisma.registration.create({
           data: {
             firstName: p.firstName,
@@ -112,7 +127,7 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({ ok: true, created, groups: Object.keys(groupMap).length });
+    return NextResponse.json({ ok: true, created, skipped, groups: Object.keys(groupMap).length });
   } catch (e) {
     console.error('import-registrations error:', e);
     return NextResponse.json({ error: 'Error importando datos' }, { status: 500 });
