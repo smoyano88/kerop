@@ -74,6 +74,12 @@ export async function POST(request: Request) {
 
         const isHH = ev.type === "Ellos y Ellos";
         const isMM = ev.type === "Ellas y Ellas";
+
+        if (isHH && gender !== "Hombre")
+          throw Object.assign(new Error("Este evento es solo para hombres."), { status: 400 });
+        if (isMM && gender !== "Mujer")
+          throw Object.assign(new Error("Este evento es solo para mujeres."), { status: 400 });
+
         // Para HH/MM el campo es cupo total (no por género), para mixto es por género
         const totalCapacityMen = ev.spotsPerGender;
         const totalCapacityWomen = ev.spotsPerGender;

@@ -96,9 +96,10 @@ export async function POST(req: NextRequest) {
   const selections = matchData.selections as Record<string, string[]>;
 
   // Buscar participantes según tipo de evento
+  // Para archivados: las registrations conservan eventId (soft-delete), también cubrimos archivedEventId
   const registrations = await prisma.registration.findMany({
     where: type === 'archived'
-      ? { archivedEventId: eventId }
+      ? { OR: [{ eventId }, { archivedEventId: eventId }] }
       : { eventId, paid: true },
     select: { id: true, firstName: true, lastName: true, gender: true, email: true, instagram: true },
   });

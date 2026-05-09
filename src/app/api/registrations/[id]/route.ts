@@ -19,9 +19,12 @@ export async function DELETE(
       return NextResponse.json({ error: 'ID requerido' }, { status: 400 });
     }
 
-    await prisma.registration.delete({
-      where: { id },
-    });
+    try {
+      await prisma.registration.delete({ where: { id } });
+    } catch (e: any) {
+      if (e?.code === 'P2025') return NextResponse.json({ error: 'Inscripción no encontrada' }, { status: 404 });
+      throw e;
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
