@@ -55,7 +55,7 @@ export default async function Home() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginBottom: '2rem' }}>
               <div style={{ position: 'relative' }}>
                 <div style={{ width: '100px', height: '100px', borderRadius: '50%', overflow: 'hidden', position: 'relative', border: '3px solid rgba(255,255,255,0.15)' }}>
-                  <Image src="/img/logo.png" alt="Kerop logo" fill style={{ objectFit: 'cover', transform: 'scale(1.1)', objectPosition: 'center' }} />
+                  <Image src="/img/logo.png" alt="Kerop logo" fill style={{ objectFit: 'cover', transform: 'scale(1.1)', objectPosition: '52% 52%' }} />
                 </div>
                 {/* Avatar Mariana sutil destacado */}
                 <div style={{ position: 'absolute', bottom: '-8px', right: '-12px', width: '40px', height: '40px', borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--neon-pink)', boxShadow: '0 4px 10px rgba(0,0,0,0.5)', zIndex: 2 }}>
