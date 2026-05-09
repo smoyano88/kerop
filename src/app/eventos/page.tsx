@@ -33,7 +33,9 @@ export default async function EventosPage() {
 
         <div className="container" style={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
-            <Image src="/img/logo.png" alt="Kerop" width={64} height={64} style={{ objectFit: 'cover', borderRadius: '50%' }} />
+            <div style={{ width: '64px', height: '64px', borderRadius: '50%', overflow: 'hidden', position: 'relative' }}>
+              <Image src="/img/logo.png" alt="Kerop" fill style={{ objectFit: 'cover', transform: 'scale(1.18)', objectPosition: 'center' }} />
+            </div>
           </div>
           <p className="text-pink" style={{ textTransform: 'uppercase', letterSpacing: '5px', fontSize: '0.75rem', marginBottom: '0.5rem' }}>Evento Especial</p>
           <h1 style={{ fontSize: 'clamp(2.2rem, 5vw, 3.5rem)', marginBottom: '0.75rem', lineHeight: 1.1 }}>

@@ -54,7 +54,9 @@ export default async function Home() {
             {/* Logo */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginBottom: '2rem' }}>
               <div style={{ position: 'relative' }}>
-                <Image src="/img/logo.png" alt="Kerop logo" width={100} height={100} style={{ objectFit: 'cover', borderRadius: '50%' }} />
+                <div style={{ width: '100px', height: '100px', borderRadius: '50%', overflow: 'hidden', position: 'relative' }}>
+                  <Image src="/img/logo.png" alt="Kerop logo" fill style={{ objectFit: 'cover', transform: 'scale(1.18)', objectPosition: 'center' }} />
+                </div>
                 {/* Avatar Mariana sutil destacado */}
                 <div style={{ position: 'absolute', bottom: '-8px', right: '-12px', width: '40px', height: '40px', borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--neon-pink)', boxShadow: '0 4px 10px rgba(0,0,0,0.5)', zIndex: 2 }}>
                   <Image src="/img/mariana-speed.png" alt="Host" fill style={{ objectFit: 'cover' }} />
@@ -309,7 +311,9 @@ export default async function Home() {
       <footer style={{ borderTop: '1px solid rgba(255,255,255,0.07)', padding: '2.5rem 0' }}>
         <div className="container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <Image src="/img/logo.png" alt="Kerop" width={42} height={42} style={{ objectFit: 'cover', borderRadius: '50%' }} />
+            <div style={{ width: '42px', height: '42px', borderRadius: '50%', overflow: 'hidden', position: 'relative', flexShrink: 0 }}>
+              <Image src="/img/logo.png" alt="Kerop" fill style={{ objectFit: 'cover', transform: 'scale(1.18)', objectPosition: 'center' }} />
+            </div>
             <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>© {new Date().getFullYear()} Kerop. Pérez Castellano 1495, Ciudad Vieja.</span>
           </div>
           <Link href="/admin" style={{ color: 'var(--text-muted)', fontSize: '0.85rem', opacity: 0.5 }}>
