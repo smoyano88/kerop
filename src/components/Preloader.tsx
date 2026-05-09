@@ -24,11 +24,11 @@ export default function Preloader() {
     const timer = setTimeout(() => {
       setFadeOut(true);
       sessionStorage.setItem('kerop-preloaded', '1');
-    }, 2500);
+    }, 3500);
 
     const removeTimer = setTimeout(() => {
       setVisible(false);
-    }, 3200);
+    }, 4300);
 
     return () => {
       clearTimeout(timer);
@@ -55,7 +55,7 @@ export default function Preloader() {
             <div className="preloader-scanline" />
           </div>
         </div>
-        <div className="preloader-tagline">speed dating</div>
+        <div className="preloader-tagline">Café & Tattoo</div>
         <div className="preloader-line" />
       </div>
     </div>
