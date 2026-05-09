@@ -2,7 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 
-export const revalidate = 60;
+export const dynamic = 'force-dynamic';
 
 const DIAS = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] as const;
 const DIA_LABELS: Record<string, string> = { lunes: 'Lun', martes: 'Mar', miercoles: 'Mié', jueves: 'Jue', viernes: 'Vie', sabado: 'Sáb', domingo: 'Dom' };

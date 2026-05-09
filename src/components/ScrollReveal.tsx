@@ -16,9 +16,12 @@ export default function ScrollReveal() {
       { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
     );
 
-    // Observar todos los elementos con clase .reveal
+    // Resetear y observar todos los elementos con clase .reveal
     const elements = document.querySelectorAll('.reveal');
-    elements.forEach((el) => observer.observe(el));
+    elements.forEach((el) => {
+      el.classList.remove('revealed');
+      observer.observe(el);
+    });
 
     return () => observer.disconnect();
   }, []);
