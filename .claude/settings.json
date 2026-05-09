@@ -30,7 +30,8 @@
       "Bash(rmdir new *)",
       "Bash(cp /tmp/seed-tatuadores.ts /Users/sergio/Documents/Personales/Proyectos/kerop-app/seed-tatuadores.ts)",
       "Bash(npx tsx *)",
-      "Bash(npx ts-node *)"
+      "Bash(npx ts-node *)",
+      "Bash(grep -v \"^$\\\\|npm\\\\|prisma@\\\\|client@\\\\|Run the\\\\|update\\\\|└\\\\|│\\\\|┌\")"
     ]
   }
 }

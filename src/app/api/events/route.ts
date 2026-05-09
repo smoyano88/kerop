@@ -20,9 +20,9 @@ export async function GET(request: Request) {
       return NextResponse.json(events);
     }
 
-    // Público: excluir archivados y filtrar reservas expiradas
+    // Público: excluir archivados y cerrados, filtrar reservas expiradas
     const filtered = events
-      .filter((ev) => !ev.archived)
+      .filter((ev) => !ev.archived && !ev.closed)
       .map((ev) => ({
         ...ev,
         registrations: ev.registrations.filter((r) => isReservationActive(r)),

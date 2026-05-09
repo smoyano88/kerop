@@ -59,6 +59,7 @@ interface Event {
   price: number;
   groupNumber?: number | null;
   archived?: boolean;
+  closed?: boolean;
   registrations: Registration[];
   matchData?: { id: string; selections: Record<string, string[]> } | null;
 }
@@ -538,6 +539,25 @@ export default function AdminClient({ events }: { events: Event[] }) {
       if (!res.ok) throw new Error('Error al eliminar evento');
       
       showSuccess('✅ Evento eliminado correctamente.');
+      await reloadEvents();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const handleCloseEvent = async (eventId: string, currentlyClosed: boolean) => {
+    const msg = currentlyClosed
+      ? '¿Reabrís las inscripciones de este evento?'
+      : '¿Cerrás las inscripciones? El evento ya no aparecerá en la página pública y pasará a la sección de matches.';
+    if (!window.confirm(msg)) return;
+    try {
+      const res = await fetch(`/api/events/${eventId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: currentAdminPassword, closed: !currentlyClosed }),
+      });
+      if (!res.ok) throw new Error('Error al actualizar evento');
+      showSuccess(currentlyClosed ? '✅ Evento reabierto.' : '✅ Inscripciones cerradas. El evento está listo para matchear.');
       await reloadEvents();
     } catch (err: any) {
       alert(err.message);
@@ -1074,13 +1094,21 @@ export default function AdminClient({ events }: { events: Event[] }) {
                   const paidMen = ev.registrations.filter(r => r.paid && r.gender === 'Hombre').length;
                   const paidWomen = ev.registrations.filter(r => r.paid && r.gender === 'Mujer').length;
                   return (
-                    <div key={ev.id} className="glass-card" style={{ padding: '1.5rem', position: 'relative' }}>
-                      <button 
-                        onClick={() => handleDeleteEvent(ev.id)}
-                        style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(255,16,122,0.1)', border: '1px solid rgba(255,16,122,0.3)', color: 'var(--neon-pink)', padding: '0.3rem 0.6rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem' }}
-                      >
-                        Eliminar
-                      </button>
+                    <div key={ev.id} className="glass-card" style={{ padding: '1.5rem', position: 'relative', border: ev.closed ? '1px solid rgba(255,200,0,0.25)' : undefined }}>
+                      <div style={{ position: 'absolute', top: '1rem', right: '1rem', display: 'flex', gap: '0.4rem' }}>
+                        <button
+                          onClick={() => handleCloseEvent(ev.id, !!ev.closed)}
+                          style={{ background: ev.closed ? 'rgba(57,255,20,0.1)' : 'rgba(255,200,0,0.1)', border: `1px solid ${ev.closed ? 'rgba(57,255,20,0.3)' : 'rgba(255,200,0,0.4)'}`, color: ev.closed ? 'var(--neon-green)' : '#f0b429', padding: '0.3rem 0.6rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+                        >
+                          {ev.closed ? '🔓 Reabrir' : '🔒 Cerrar'}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteEvent(ev.id)}
+                          style={{ background: 'rgba(255,16,122,0.1)', border: '1px solid rgba(255,16,122,0.3)', color: 'var(--neon-pink)', padding: '0.3rem 0.6rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem' }}
+                        >
+                          Eliminar
+                        </button>
+                      </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', paddingRight: '4.5rem' }}>
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.3rem', flexWrap: 'wrap' }}>
@@ -1088,6 +1116,11 @@ export default function AdminClient({ events }: { events: Event[] }) {
                             {ev.groupNumber != null && (
                               <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--neon-cyan)', background: 'rgba(0,255,255,0.08)', border: '1px solid rgba(0,255,255,0.3)', padding: '0.15rem 0.5rem', borderRadius: '999px', letterSpacing: '0.5px' }}>
                                 G{ev.groupNumber}
+                              </span>
+                            )}
+                            {ev.closed && (
+                              <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#f0b429', background: 'rgba(255,200,0,0.1)', border: '1px solid rgba(255,200,0,0.3)', padding: '0.15rem 0.5rem', borderRadius: '999px' }}>
+                                🔒 Cerrado
                               </span>
                             )}
                           </div>
@@ -1112,7 +1145,9 @@ export default function AdminClient({ events }: { events: Event[] }) {
                         {!isMM && (
                           <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
                             <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '0.3rem' }}>{isHH ? 'Cupos Totales' : 'Cupos Hombres'}</div>
-                            <div style={{ fontWeight: 600, color: 'var(--neon-green)' }}>{Math.max(0, totalSpotsMen - paidMen)} disp. <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>(de {totalSpotsMen})</span></div>
+                            <div style={{ fontWeight: 600, color: ev.closed ? 'var(--text-muted)' : 'var(--neon-green)' }}>
+                              {ev.closed ? '0' : Math.max(0, totalSpotsMen - paidMen)} disp. <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>(de {totalSpotsMen})</span>
+                            </div>
                             <div style={{ fontSize: '0.75rem', color: 'gray', marginTop: '0.2rem' }}>Pagos: {paidMen} · Pendientes: {registeredMen - paidMen}</div>
                           </div>
                         )}
@@ -1120,7 +1155,9 @@ export default function AdminClient({ events }: { events: Event[] }) {
                         {!isHH && (
                           <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
                             <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '0.3rem' }}>{isMM ? 'Cupos Totales' : 'Cupos Mujeres'}</div>
-                            <div style={{ fontWeight: 600, color: 'var(--neon-green)' }}>{Math.max(0, totalSpotsWomen - paidWomen)} disp. <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>(de {totalSpotsWomen})</span></div>
+                            <div style={{ fontWeight: 600, color: ev.closed ? 'var(--text-muted)' : 'var(--neon-green)' }}>
+                              {ev.closed ? '0' : Math.max(0, totalSpotsWomen - paidWomen)} disp. <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>(de {totalSpotsWomen})</span>
+                            </div>
                             <div style={{ fontSize: '0.75rem', color: 'gray', marginTop: '0.2rem' }}>Pagos: {paidWomen} · Pendientes: {registeredWomen - paidWomen}</div>
                           </div>
                         )}
@@ -1512,17 +1549,24 @@ export default function AdminClient({ events }: { events: Event[] }) {
 
         {/* ─── TAB: MATCHES ─── */}
         {activeTab === 'matches' && (() => {
-          // Eventos con cupo completo: mixto = spotsPerGender * 2 (hombres + mujeres), HH/MM = spotsPerGender total
+          // Eventos listos para matchear: cerrados manualmente O con cupo completo
           const fullEvents = eventList.filter(ev => {
             if (ev.archived) return false;
+            if (ev.closed) return true;
             const isHomo = ev.type === 'Ellos y Ellos' || ev.type === 'Ellas y Ellas';
             const totalSpots = isHomo ? ev.spotsPerGender : ev.spotsPerGender * 2;
             const paidCount = ev.registrations.filter(r => r.paid).length;
             return paidCount >= totalSpots;
           });
 
-          // Eventos archivados sin MatchData cargado
-          const archivedWithoutMatches = eventList.filter(ev => ev.archived && !ev.matchData);
+          // Eventos pasados sin MatchData: tienen registrations cargadas pero sin matches
+          const archivedWithoutMatches = eventList.filter(ev =>
+            !ev.archived && !ev.matchData && ev.registrations.length > 0 &&
+            (ev.closed || (() => {
+              const isHomo = ev.type === 'Ellos y Ellos' || ev.type === 'Ellas y Ellas';
+              return ev.registrations.filter(r => r.paid).length < (isHomo ? ev.spotsPerGender : ev.spotsPerGender * 2);
+            })())
+          ).concat(eventList.filter(ev => ev.archived && !ev.matchData));
 
           const selectedEvent = matchEventId ? eventList.find(e => e.id === matchEventId) : null;
           const isArchivedEvent = selectedEvent?.archived ?? false;

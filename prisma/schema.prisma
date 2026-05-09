@@ -23,6 +23,7 @@ model Event {
   price           Int            @default(850)
   mpEnabled       Boolean        @default(true)
   archived        Boolean        @default(false)
+  closed          Boolean        @default(false)
   registrations   Registration[]
   matchData       MatchData?
   createdAt       DateTime       @default(now())
