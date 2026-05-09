@@ -60,6 +60,7 @@ interface Event {
   groupNumber?: number | null;
   archived?: boolean;
   registrations: Registration[];
+  matchData?: { id: string; selections: Record<string, string[]> } | null;
 }
 
 export default function AdminClient({ events }: { events: Event[] }) {
@@ -1520,8 +1521,15 @@ export default function AdminClient({ events }: { events: Event[] }) {
             return paidCount >= totalSpots;
           });
 
+          // Eventos archivados sin MatchData cargado
+          const archivedWithoutMatches = eventList.filter(ev => ev.archived && !ev.matchData);
+
           const selectedEvent = matchEventId ? eventList.find(e => e.id === matchEventId) : null;
-          const paidRegs = selectedEvent?.registrations.filter(r => r.paid) || [];
+          const isArchivedEvent = selectedEvent?.archived ?? false;
+          // Para archivados usamos todos los registros; para activos solo los pagos
+          const paidRegs = selectedEvent
+            ? (isArchivedEvent ? selectedEvent.registrations : selectedEvent.registrations.filter(r => r.paid))
+            : [];
           const men = paidRegs.filter(r => r.gender === 'Hombre');
           const women = paidRegs.filter(r => r.gender === 'Mujer');
           const isHomoEvent = selectedEvent?.type === 'Ellos y Ellos' || selectedEvent?.type === 'Ellas y Ellas';
@@ -1715,15 +1723,15 @@ export default function AdminClient({ events }: { events: Event[] }) {
                 </button>
               </div>
 
-              {/* Selector de evento */}
-              <div className="glass-card" style={{ marginBottom: '2rem', padding: '1.5rem' }}>
-                <label className="input-label">Seleccionar Evento</label>
+              {/* Selector de evento activo */}
+              <div className="glass-card" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
+                <label className="input-label">Evento activo</label>
                 {fullEvents.length === 0 ? (
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.5rem' }}>No hay eventos con cupo completo todavía. Los eventos aparecen acá cuando todos los cupos están pagados.</p>
                 ) : (
                   <select
                     className="input-field"
-                    value={matchEventId || ''}
+                    value={matchEventId && !selectedEvent?.archived ? matchEventId : ''}
                     onChange={(e) => e.target.value && handleLoadSelections(e.target.value)}
                     style={{ appearance: 'none', backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'white\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpolyline points=\'6 9 12 15 18 9\'%3E%3C/polyline%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', paddingRight: '3rem' }}
                   >
@@ -1737,18 +1745,63 @@ export default function AdminClient({ events }: { events: Event[] }) {
                 )}
               </div>
 
+              {/* Eventos pasados sin matches */}
+              {archivedWithoutMatches.length > 0 && (
+                <div className="glass-card" style={{ marginBottom: '2rem', padding: '1.5rem', border: '1px solid rgba(255,200,0,0.2)' }}>
+                  <label className="input-label" style={{ color: '#f0b429' }}>📋 Eventos pasados sin matches cargados</label>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '0.5rem 0 1rem' }}>
+                    Estos grupos ya tienen participantes pero todavía no cargaste los matches. Seleccioná uno para cargarlos.
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {archivedWithoutMatches.map(ev => (
+                      <button
+                        key={ev.id}
+                        onClick={() => handleLoadSelections(ev.id)}
+                        style={{
+                          background: matchEventId === ev.id ? 'rgba(255,200,0,0.15)' : 'rgba(255,255,255,0.03)',
+                          border: `1px solid ${matchEventId === ev.id ? 'rgba(255,200,0,0.5)' : 'rgba(255,255,255,0.08)'}`,
+                          borderRadius: '10px', padding: '0.75rem 1rem', cursor: 'pointer',
+                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                          color: 'white', textAlign: 'left', transition: 'all 0.15s',
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>
+                            {ev.groupNumber ? `Grupo ${ev.groupNumber}` : ev.type}
+                          </div>
+                          <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '0.2rem' }}>
+                            {format(new Date(ev.date), "dd/MM/yyyy", { locale: es })} · {ev.registrations.length} participantes
+                          </div>
+                        </div>
+                        <span style={{ color: '#f0b429', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                          {matchEventId === ev.id ? 'Seleccionado ✓' : 'Cargar →'}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Matrices */}
               {selectedEvent && (
                 <div className="glass-card" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
                     <div>
-                      <h4 style={{ fontSize: '1.2rem', color: 'white' }}>{selectedEvent.type}</h4>
-                      <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{format(new Date(selectedEvent.date), "EEEE d 'de' MMMM yyyy", { locale: es })} • {paidRegs.length} participantes pagados</p>
+                      <h4 style={{ fontSize: '1.2rem', color: 'white' }}>
+                        {selectedEvent.groupNumber ? `Grupo ${selectedEvent.groupNumber} — ${selectedEvent.type}` : selectedEvent.type}
+                        {isArchivedEvent && <span style={{ marginLeft: '0.5rem', fontSize: '0.75rem', background: 'rgba(255,200,0,0.15)', color: '#f0b429', border: '1px solid rgba(255,200,0,0.3)', padding: '0.15rem 0.5rem', borderRadius: '6px' }}>Pasado</span>}
+                      </h4>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                        {format(new Date(selectedEvent.date), "EEEE d 'de' MMMM yyyy", { locale: es })} • {paidRegs.length} participantes{isArchivedEvent ? '' : ' pagados'}
+                      </p>
                     </div>
                   </div>
 
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '1.5rem', background: 'rgba(255,255,255,0.03)', padding: '0.75rem', borderRadius: '8px' }}>
-                    📋 Leé la planilla de cada participante y tildá a quién le puso match. Tocá el <span style={{ color: 'var(--neon-green)' }}>✓</span> para marcar a alguien que no asistió (queda gris). <span style={{ color: 'var(--neon-green)' }}>💾 Los cambios se guardan automáticamente.</span>
+                    {isArchivedEvent
+                      ? '📋 Cargá los matches de este evento pasado. Tildá a quién eligió cada participante según las planillas del evento. Una vez que hagas click en "Calcular Matches" quedan guardados en el historial.'
+                      : <>📋 Leé la planilla de cada participante y tildá a quién le puso match. Tocá el <span style={{ color: 'var(--neon-green)' }}>✓</span> para marcar a alguien que no asistió (queda gris). <span style={{ color: 'var(--neon-green)' }}>💾 Los cambios se guardan automáticamente.</span></>
+                    }
                   </p>
 
                   {isHomoEvent && allParticipants ? (
