@@ -78,8 +78,11 @@ export async function POST(request: Request) {
     const data = JSON.parse(jsonStr);
 
     return NextResponse.json(data);
-  } catch (e) {
+  } catch (e: any) {
     console.error('scan-cuaderno error:', e);
+    if (e?.status === 503) {
+      return NextResponse.json({ error: 'Gemini está con alta demanda ahora. Esperá unos segundos y volvé a intentar.' }, { status: 503 });
+    }
     return NextResponse.json({ error: 'Error procesando imagen' }, { status: 500 });
   }
 }
