@@ -66,14 +66,26 @@ export async function POST(request: Request) {
     const base64 = Buffer.from(bytes).toString('base64');
     const mimeType = (file.type || 'image/jpeg') as string;
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-    const result = await model.generateContent([
-      PROMPT,
-      { inlineData: { data: base64, mimeType } },
-    ]);
+    let result;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        result = await model.generateContent([
+          PROMPT,
+          { inlineData: { data: base64, mimeType } },
+        ]);
+        break;
+      } catch (e: any) {
+        if (e?.status === 503 && attempt < 3) {
+          await new Promise(res => setTimeout(res, attempt * 2000));
+          continue;
+        }
+        throw e;
+      }
+    }
 
-    const raw = result.response.text().trim();
+    const raw = result!.response.text().trim();
     const jsonStr = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
     const data = JSON.parse(jsonStr);
 
