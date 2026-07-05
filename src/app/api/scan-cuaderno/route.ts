@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     const base64 = Buffer.from(bytes).toString('base64');
     const mimeType = (file.type || 'image/jpeg') as string;
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     let result;
     for (let attempt = 1; attempt <= 3; attempt++) {
