@@ -843,12 +843,12 @@ a {
 }
 
 /* Tabla inscriptos: tabla en desktop, cards en mobile */
-.reg-table-desktop { display: block; }
-.reg-cards-mobile  { display: none; }
+.reg-table-desktop { display: block !important; }
+.reg-cards-mobile  { display: none !important; }
 
 @media (max-width: 768px) {
-  .reg-table-desktop { display: none; }
-  .reg-cards-mobile  { display: flex; }
+  .reg-table-desktop { display: none !important; }
+  .reg-cards-mobile  { display: flex !important; }
 }
 
 /* Admin content safe-area bottom */

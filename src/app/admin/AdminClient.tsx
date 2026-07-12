@@ -1338,7 +1338,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
                             </div>
 
                             {/* Mobile: cards */}
-                            <div className="reg-cards-mobile" style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                            <div className="reg-cards-mobile" style={{ flexDirection: 'column', gap: '0.6rem' }}>
                               {ev.registrations.map((reg, idx) => {
                                 const allPriorPartners = repeatedMatchData[ev.id]?.[reg.id] || [];
                                 const priorMatchHere = allPriorPartners.filter(p => currentIdentities.has(identityOf(p)));
