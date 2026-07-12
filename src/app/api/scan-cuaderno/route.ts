@@ -25,7 +25,14 @@ Reglas:
 - Si no aparece celular, usá null
 - Si no aparece bebida, usá "Sin especificar"
 - Si no aparece edad, usá null
-- Si aparece la preferencia sexual del participante (ej: "hetero", "heterosexual", "gay", "homosexual", "bi", "bisexual"), normalizala a "Heterosexual", "Homosexual" o "Bisexual"; si no aparece, usá null
+- Preferencia sexual: en el cuaderno suele estar anotada como A QUIÉN BUSCA el participante (ej: "mujeres", "hombres", "hombres y mujeres", "ambos"). Deducila cruzando con el género del participante:
+  * Hombre que busca "mujeres" → "Heterosexual"
+  * Hombre que busca "hombres" → "Homosexual"
+  * Mujer que busca "hombres" → "Heterosexual"
+  * Mujer que busca "mujeres" → "Homosexual"
+  * Si busca "hombres y mujeres" / "ambos" (cualquier género) → "Bisexual"
+  * Si en cambio aparece la etiqueta directa (ej: "hetero", "gay", "bi"), normalizala a "Heterosexual", "Homosexual" o "Bisexual"
+  * Si no aparece nada, usá null
 
 Devolvé ÚNICAMENTE un JSON válido con esta estructura, sin texto adicional ni markdown:
 {
