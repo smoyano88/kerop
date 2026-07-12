@@ -15,6 +15,8 @@ interface Registration {
   firstName: string;
   lastName: string;
   gender: string;
+  age?: number | null;
+  sexualPreference?: string | null;
   email?: string;
   phone?: string;
   instagram?: string;
@@ -2626,14 +2628,16 @@ export default function AdminClient({ events }: { events: Event[] }) {
 
         {/* ─── TAB: PARTICIPANTES ─── */}
         {activeTab === 'participants' && (() => {
-          // Agrupar por teléfono (si tiene), luego instagram, luego nombre
+          // Agrupar por teléfono/instagram + nombre — dos personas distintas no deben
+          // fusionarse solo porque comparten teléfono (ej: dato de prueba repetido o error de tipeo)
           const groups: Record<string, ParticipantGroup> = {};
           for (const reg of allRegistrations) {
+            const nameKey = `${reg.firstName}_${reg.lastName}`.toLowerCase().trim();
             const key = reg.phone
-              ? `phone_${reg.phone}`
+              ? `phone_${reg.phone}_${nameKey}`
               : reg.instagram?.toLowerCase()
-              ? `ig_${reg.instagram.toLowerCase()}`
-              : `name_${reg.firstName}_${reg.lastName}`.toLowerCase();
+              ? `ig_${reg.instagram.toLowerCase()}_${nameKey}`
+              : `name_${nameKey}`;
             if (!groups[key]) {
               groups[key] = { key, instagram: reg.instagram || null, firstName: reg.firstName, lastName: reg.lastName, phone: reg.phone || null, registrations: [] };
             } else {
@@ -2956,6 +2960,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
                   {filtered.map(participant => {
                     const isExpanded = expandedParticipant === participant.key;
                     const totalMatchCount = participant.registrations.reduce((acc, r) => acc + getMatchesForReg(r).length, 0);
+                    const latestReg = [...participant.registrations].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
                     return (
                       <div key={participant.key} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '12px', overflow: 'hidden' }}>
                         {/* Fila del participante */}
@@ -2969,6 +2974,8 @@ export default function AdminClient({ events }: { events: Event[] }) {
                               <div style={{ color: 'var(--neon-cyan)', fontSize: '0.85rem', marginTop: '0.15rem' }}>{participant.instagram || <span style={{ color: 'var(--text-muted)' }}>Sin Instagram</span>}</div>
                             </div>
                             <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>📱 {participant.phone || '—'}</div>
+                            {latestReg?.age != null && <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>🎂 {latestReg.age}</div>}
+                            {latestReg?.sexualPreference && <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>💗 {latestReg.sexualPreference}</div>}
                             <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                               📅 {participant.registrations.length} evento{participant.registrations.length !== 1 ? 's' : ''}
                             </div>
@@ -3030,6 +3037,16 @@ export default function AdminClient({ events }: { events: Event[] }) {
                                         <span style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', borderRadius: '50px', padding: '0.15rem 0.6rem', fontSize: '0.75rem' }}>
                                           {reg.gender === 'Hombre' ? '👨 Hombre' : '👩 Mujer'}
                                         </span>
+                                        {reg.age != null && (
+                                          <span style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', borderRadius: '50px', padding: '0.15rem 0.6rem', fontSize: '0.75rem' }}>
+                                            🎂 {reg.age}
+                                          </span>
+                                        )}
+                                        {reg.sexualPreference && (
+                                          <span style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', borderRadius: '50px', padding: '0.15rem 0.6rem', fontSize: '0.75rem' }}>
+                                            💗 {reg.sexualPreference}
+                                          </span>
+                                        )}
                                       </div>
                                     </div>
 
