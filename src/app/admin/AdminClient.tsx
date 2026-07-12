@@ -250,6 +250,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
   const [scanLoading, setScanLoading] = useState(false);
   const [scanResult, setScanResult] = useState<{ participantes: ScannedParticipante[]; eventosDetectados: ScannedEvento[] } | null>(null);
   const [importLoading, setImportLoading] = useState(false);
+  const [editingScanIndex, setEditingScanIndex] = useState<number | null>(null);
   const scanInputRef = useRef<HTMLInputElement>(null);
 
   const handleScanImage = async (file: File) => {
@@ -263,6 +264,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
       const data = await res.json();
       if (data.error) { setError(data.error); return; }
       // gruposText permite editar los grupos como texto libre antes de importar
+      setEditingScanIndex(null);
       setScanResult({
         ...data,
         participantes: (data.participantes || []).map((p: ScannedParticipante) => ({
@@ -2740,109 +2742,153 @@ export default function AdminClient({ events }: { events: Event[] }) {
                         </button>
                       </div>
 
-                      <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '0.75rem' }}>
-                        ✏️ Podés corregir cualquier dato antes de importar. Los grupos se separan con coma (ej: 35, 36, 39).
-                      </p>
-
-                      {/* Participantes detectados — tabla desktop / cards mobile (editables) */}
+                      {/* Participantes detectados — tabla desktop / cards mobile */}
                       {/* Desktop */}
                       <div className="reg-table-desktop" style={{ overflowX: 'auto', marginBottom: '1.25rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.07)' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', minWidth: '760px' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', minWidth: '640px' }}>
                           <thead>
                             <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)' }}>
-                              {['Nombre', 'Apellido', 'Género', 'Edad', 'Pref.', 'Teléfono', 'Bebida', 'Grupos'].map(h => (
-                                <th key={h} style={{ textAlign: 'left', padding: '0.5rem 0.5rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
+                              {['Nombre', 'Género', 'Edad', 'Pref.', 'Teléfono', 'Bebida', 'Grupos', ''].map((h, hi) => (
+                                <th key={hi} style={{ textAlign: 'left', padding: '0.5rem 0.75rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
                               ))}
                             </tr>
                           </thead>
                           <tbody>
                             {scanResult.participantes.map((p, i) => (
-                              <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                <td style={{ padding: '0.4rem 0.5rem', minWidth: '110px' }}>
-                                  <input style={scanCellInput} value={p.firstName} onChange={e => updateScannedParticipante(i, { firstName: e.target.value })} />
-                                </td>
-                                <td style={{ padding: '0.4rem 0.5rem', minWidth: '110px' }}>
-                                  <input style={scanCellInput} value={p.lastName} onChange={e => updateScannedParticipante(i, { lastName: e.target.value })} />
-                                </td>
-                                <td style={{ padding: '0.4rem 0.5rem' }}>
-                                  <select style={{ ...scanCellInput, color: p.gender === 'Mujer' ? 'var(--neon-pink)' : 'var(--neon-cyan)' }} value={p.gender} onChange={e => updateScannedParticipante(i, { gender: e.target.value as 'Hombre' | 'Mujer' })}>
-                                    <option value="Hombre" style={{ background: '#000', color: '#fff' }}>Hombre</option>
-                                    <option value="Mujer" style={{ background: '#000', color: '#fff' }}>Mujer</option>
-                                  </select>
-                                </td>
-                                <td style={{ padding: '0.4rem 0.5rem', width: '65px' }}>
-                                  <input style={scanCellInput} type="number" min={18} max={99} value={p.age ?? ''} onChange={e => updateScannedParticipante(i, { age: e.target.value === '' ? null : parseInt(e.target.value, 10) })} />
-                                </td>
-                                <td style={{ padding: '0.4rem 0.5rem', minWidth: '120px' }}>
-                                  <select style={scanCellInput} value={p.sexualPreference ?? ''} onChange={e => updateScannedParticipante(i, { sexualPreference: e.target.value || null })}>
-                                    <option value="" style={{ background: '#000', color: '#fff' }}>—</option>
-                                    <option value="Heterosexual" style={{ background: '#000', color: '#fff' }}>Heterosexual</option>
-                                    <option value="Homosexual" style={{ background: '#000', color: '#fff' }}>Homosexual</option>
-                                    <option value="Bisexual" style={{ background: '#000', color: '#fff' }}>Bisexual</option>
-                                    <option value="Otra" style={{ background: '#000', color: '#fff' }}>Otra</option>
-                                  </select>
-                                </td>
-                                <td style={{ padding: '0.4rem 0.5rem', minWidth: '120px' }}>
-                                  <input style={scanCellInput} value={p.phone ?? ''} onChange={e => updateScannedParticipante(i, { phone: e.target.value || null })} />
-                                </td>
-                                <td style={{ padding: '0.4rem 0.5rem', minWidth: '120px' }}>
-                                  <input style={scanCellInput} value={p.selectedDrink ?? ''} onChange={e => updateScannedParticipante(i, { selectedDrink: e.target.value })} />
-                                </td>
-                                <td style={{ padding: '0.4rem 0.5rem', minWidth: '110px' }}>
-                                  <input style={{ ...scanCellInput, color: 'var(--neon-cyan)' }} value={p.gruposText ?? ''} placeholder="35, 36" onChange={e => updateScannedParticipante(i, { gruposText: e.target.value })} />
-                                </td>
-                              </tr>
+                              editingScanIndex === i ? (
+                                <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,16,122,0.04)' }}>
+                                  <td style={{ padding: '0.4rem 0.5rem', minWidth: '180px' }}>
+                                    <div style={{ display: 'flex', gap: '0.3rem' }}>
+                                      <input style={scanCellInput} value={p.firstName} placeholder="Nombre" onChange={e => updateScannedParticipante(i, { firstName: e.target.value })} />
+                                      <input style={scanCellInput} value={p.lastName} placeholder="Apellido" onChange={e => updateScannedParticipante(i, { lastName: e.target.value })} />
+                                    </div>
+                                  </td>
+                                  <td style={{ padding: '0.4rem 0.5rem' }}>
+                                    <select style={{ ...scanCellInput, color: p.gender === 'Mujer' ? 'var(--neon-pink)' : 'var(--neon-cyan)' }} value={p.gender} onChange={e => updateScannedParticipante(i, { gender: e.target.value as 'Hombre' | 'Mujer' })}>
+                                      <option value="Hombre" style={{ background: '#000', color: '#fff' }}>Hombre</option>
+                                      <option value="Mujer" style={{ background: '#000', color: '#fff' }}>Mujer</option>
+                                    </select>
+                                  </td>
+                                  <td style={{ padding: '0.4rem 0.5rem', width: '70px' }}>
+                                    <input style={scanCellInput} type="number" min={18} max={99} value={p.age ?? ''} onChange={e => updateScannedParticipante(i, { age: e.target.value === '' ? null : parseInt(e.target.value, 10) })} />
+                                  </td>
+                                  <td style={{ padding: '0.4rem 0.5rem', minWidth: '130px' }}>
+                                    <select style={scanCellInput} value={p.sexualPreference ?? ''} onChange={e => updateScannedParticipante(i, { sexualPreference: e.target.value || null })}>
+                                      <option value="" style={{ background: '#000', color: '#fff' }}>—</option>
+                                      <option value="Heterosexual" style={{ background: '#000', color: '#fff' }}>Heterosexual</option>
+                                      <option value="Homosexual" style={{ background: '#000', color: '#fff' }}>Homosexual</option>
+                                      <option value="Bisexual" style={{ background: '#000', color: '#fff' }}>Bisexual</option>
+                                      <option value="Otra" style={{ background: '#000', color: '#fff' }}>Otra</option>
+                                    </select>
+                                  </td>
+                                  <td style={{ padding: '0.4rem 0.5rem', minWidth: '120px' }}>
+                                    <input style={scanCellInput} value={p.phone ?? ''} onChange={e => updateScannedParticipante(i, { phone: e.target.value || null })} />
+                                  </td>
+                                  <td style={{ padding: '0.4rem 0.5rem', minWidth: '120px' }}>
+                                    <input style={scanCellInput} value={p.selectedDrink ?? ''} onChange={e => updateScannedParticipante(i, { selectedDrink: e.target.value })} />
+                                  </td>
+                                  <td style={{ padding: '0.4rem 0.5rem', minWidth: '100px' }}>
+                                    <input style={{ ...scanCellInput, color: 'var(--neon-cyan)' }} value={p.gruposText ?? ''} placeholder="35, 36" onChange={e => updateScannedParticipante(i, { gruposText: e.target.value })} />
+                                  </td>
+                                  <td style={{ padding: '0.4rem 0.5rem', whiteSpace: 'nowrap' }}>
+                                    <button onClick={() => setEditingScanIndex(null)} title="Listo" style={{ background: 'rgba(57,255,20,0.12)', border: '1px solid rgba(57,255,20,0.4)', color: '#39ff14', borderRadius: '6px', padding: '0.3rem 0.6rem', cursor: 'pointer', fontSize: '0.85rem' }}>✓</button>
+                                  </td>
+                                </tr>
+                              ) : (
+                                <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                  <td style={{ padding: '0.6rem 0.75rem', color: 'white', whiteSpace: 'nowrap' }}>{p.firstName} {p.lastName}</td>
+                                  <td style={{ padding: '0.6rem 0.75rem', color: p.gender === 'Mujer' ? 'var(--neon-pink)' : 'var(--neon-cyan)', whiteSpace: 'nowrap' }}>{p.gender}</td>
+                                  <td style={{ padding: '0.6rem 0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{p.age ?? '—'}</td>
+                                  <td style={{ padding: '0.6rem 0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{p.sexualPreference || '—'}</td>
+                                  <td style={{ padding: '0.6rem 0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{p.phone || '—'}</td>
+                                  <td style={{ padding: '0.6rem 0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{p.selectedDrink || '—'}</td>
+                                  <td style={{ padding: '0.6rem 0.75rem' }}>
+                                    {(p.gruposText ?? '').split(',').map(s => s.trim()).filter(Boolean).map(g => (
+                                      <span key={g} style={{ background: 'rgba(0,255,255,0.1)', color: 'var(--neon-cyan)', border: '1px solid rgba(0,255,255,0.2)', borderRadius: '4px', padding: '0.1rem 0.4rem', fontSize: '0.75rem', marginRight: '0.3rem' }}>G{g}</span>
+                                    ))}
+                                  </td>
+                                  <td style={{ padding: '0.6rem 0.75rem' }}>
+                                    <button onClick={() => setEditingScanIndex(i)} title="Editar" style={{ background: 'none', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '6px', padding: '0.3rem 0.55rem', cursor: 'pointer', fontSize: '0.85rem' }}>✏️</button>
+                                  </td>
+                                </tr>
+                              )
                             ))}
                           </tbody>
                         </table>
                       </div>
-                      {/* Mobile cards (editables) */}
+                      {/* Mobile cards */}
                       <div className="reg-cards-mobile" style={{ flexDirection: 'column', gap: '0.5rem', marginBottom: '1.25rem' }}>
                         {scanResult.participantes.map((p, i) => (
-                          <div key={i} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '10px', padding: '0.75rem 1rem' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                              <div>
-                                <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Nombre</label>
-                                <input style={scanCellInput} value={p.firstName} onChange={e => updateScannedParticipante(i, { firstName: e.target.value })} />
-                              </div>
-                              <div>
-                                <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Apellido</label>
-                                <input style={scanCellInput} value={p.lastName} onChange={e => updateScannedParticipante(i, { lastName: e.target.value })} />
-                              </div>
-                              <div>
-                                <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Género</label>
-                                <select style={{ ...scanCellInput, color: p.gender === 'Mujer' ? 'var(--neon-pink)' : 'var(--neon-cyan)' }} value={p.gender} onChange={e => updateScannedParticipante(i, { gender: e.target.value as 'Hombre' | 'Mujer' })}>
-                                  <option value="Hombre" style={{ background: '#000', color: '#fff' }}>Hombre</option>
-                                  <option value="Mujer" style={{ background: '#000', color: '#fff' }}>Mujer</option>
-                                </select>
-                              </div>
-                              <div>
-                                <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Edad</label>
-                                <input style={scanCellInput} type="number" min={18} max={99} value={p.age ?? ''} onChange={e => updateScannedParticipante(i, { age: e.target.value === '' ? null : parseInt(e.target.value, 10) })} />
-                              </div>
-                              <div>
-                                <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Preferencia</label>
-                                <select style={scanCellInput} value={p.sexualPreference ?? ''} onChange={e => updateScannedParticipante(i, { sexualPreference: e.target.value || null })}>
-                                  <option value="" style={{ background: '#000', color: '#fff' }}>—</option>
-                                  <option value="Heterosexual" style={{ background: '#000', color: '#fff' }}>Heterosexual</option>
-                                  <option value="Homosexual" style={{ background: '#000', color: '#fff' }}>Homosexual</option>
-                                  <option value="Bisexual" style={{ background: '#000', color: '#fff' }}>Bisexual</option>
-                                  <option value="Otra" style={{ background: '#000', color: '#fff' }}>Otra</option>
-                                </select>
-                              </div>
-                              <div>
-                                <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Teléfono</label>
-                                <input style={scanCellInput} value={p.phone ?? ''} onChange={e => updateScannedParticipante(i, { phone: e.target.value || null })} />
-                              </div>
-                              <div>
-                                <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Bebida</label>
-                                <input style={scanCellInput} value={p.selectedDrink ?? ''} onChange={e => updateScannedParticipante(i, { selectedDrink: e.target.value })} />
-                              </div>
-                              <div>
-                                <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Grupos (coma)</label>
-                                <input style={{ ...scanCellInput, color: 'var(--neon-cyan)' }} value={p.gruposText ?? ''} placeholder="35, 36" onChange={e => updateScannedParticipante(i, { gruposText: e.target.value })} />
-                              </div>
-                            </div>
+                          <div key={i} style={{ background: 'rgba(255,255,255,0.03)', border: editingScanIndex === i ? '1px solid rgba(255,16,122,0.35)' : '1px solid rgba(255,255,255,0.07)', borderRadius: '10px', padding: '0.75rem 1rem' }}>
+                            {editingScanIndex === i ? (
+                              <>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                                  <div>
+                                    <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Nombre</label>
+                                    <input style={scanCellInput} value={p.firstName} onChange={e => updateScannedParticipante(i, { firstName: e.target.value })} />
+                                  </div>
+                                  <div>
+                                    <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Apellido</label>
+                                    <input style={scanCellInput} value={p.lastName} onChange={e => updateScannedParticipante(i, { lastName: e.target.value })} />
+                                  </div>
+                                  <div>
+                                    <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Género</label>
+                                    <select style={{ ...scanCellInput, color: p.gender === 'Mujer' ? 'var(--neon-pink)' : 'var(--neon-cyan)' }} value={p.gender} onChange={e => updateScannedParticipante(i, { gender: e.target.value as 'Hombre' | 'Mujer' })}>
+                                      <option value="Hombre" style={{ background: '#000', color: '#fff' }}>Hombre</option>
+                                      <option value="Mujer" style={{ background: '#000', color: '#fff' }}>Mujer</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Edad</label>
+                                    <input style={scanCellInput} type="number" min={18} max={99} value={p.age ?? ''} onChange={e => updateScannedParticipante(i, { age: e.target.value === '' ? null : parseInt(e.target.value, 10) })} />
+                                  </div>
+                                  <div>
+                                    <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Preferencia</label>
+                                    <select style={scanCellInput} value={p.sexualPreference ?? ''} onChange={e => updateScannedParticipante(i, { sexualPreference: e.target.value || null })}>
+                                      <option value="" style={{ background: '#000', color: '#fff' }}>—</option>
+                                      <option value="Heterosexual" style={{ background: '#000', color: '#fff' }}>Heterosexual</option>
+                                      <option value="Homosexual" style={{ background: '#000', color: '#fff' }}>Homosexual</option>
+                                      <option value="Bisexual" style={{ background: '#000', color: '#fff' }}>Bisexual</option>
+                                      <option value="Otra" style={{ background: '#000', color: '#fff' }}>Otra</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Teléfono</label>
+                                    <input style={scanCellInput} value={p.phone ?? ''} onChange={e => updateScannedParticipante(i, { phone: e.target.value || null })} />
+                                  </div>
+                                  <div>
+                                    <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Bebida</label>
+                                    <input style={scanCellInput} value={p.selectedDrink ?? ''} onChange={e => updateScannedParticipante(i, { selectedDrink: e.target.value })} />
+                                  </div>
+                                  <div>
+                                    <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Grupos (coma)</label>
+                                    <input style={{ ...scanCellInput, color: 'var(--neon-cyan)' }} value={p.gruposText ?? ''} placeholder="35, 36" onChange={e => updateScannedParticipante(i, { gruposText: e.target.value })} />
+                                  </div>
+                                </div>
+                                <button onClick={() => setEditingScanIndex(null)} style={{ marginTop: '0.6rem', width: '100%', background: 'rgba(57,255,20,0.12)', border: '1px solid rgba(57,255,20,0.4)', color: '#39ff14', borderRadius: '8px', padding: '0.45rem', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem' }}>✓ Listo</button>
+                              </>
+                            ) : (
+                              <>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                                  <div style={{ fontWeight: 600, color: p.gender === 'Mujer' ? 'var(--neon-pink)' : 'var(--neon-cyan)' }}>
+                                    {p.firstName} {p.lastName}
+                                  </div>
+                                  <button onClick={() => setEditingScanIndex(i)} title="Editar" style={{ background: 'none', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '6px', padding: '0.25rem 0.5rem', cursor: 'pointer', fontSize: '0.8rem' }}>✏️</button>
+                                </div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', fontSize: '0.8rem', alignItems: 'center' }}>
+                                  <span style={{ color: 'var(--text-muted)' }}>{p.gender === 'Mujer' ? '👩' : '👨'} {p.gender}</span>
+                                  {p.age != null && <span style={{ color: 'var(--text-muted)' }}>🎂 {p.age}</span>}
+                                  {p.sexualPreference && <span style={{ color: 'var(--text-muted)' }}>💗 {p.sexualPreference}</span>}
+                                  {p.phone && <span style={{ color: 'var(--text-muted)' }}>📱 {p.phone}</span>}
+                                  {p.selectedDrink && <span style={{ color: 'var(--text-muted)' }}>🍹 {p.selectedDrink}</span>}
+                                  <span style={{ marginLeft: 'auto', display: 'flex', gap: '0.25rem' }}>
+                                    {(p.gruposText ?? '').split(',').map(s => s.trim()).filter(Boolean).map(g => (
+                                      <span key={g} style={{ background: 'rgba(0,255,255,0.1)', color: 'var(--neon-cyan)', border: '1px solid rgba(0,255,255,0.2)', borderRadius: '4px', padding: '0.1rem 0.4rem', fontSize: '0.75rem' }}>G{g}</span>
+                                    ))}
+                                  </span>
+                                </div>
+                              </>
+                            )}
                           </div>
                         ))}
                       </div>
