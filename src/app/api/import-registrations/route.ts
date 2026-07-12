@@ -10,6 +10,7 @@ interface ParticipanteInput {
   phone: string | null;
   selectedDrink: string;
   age: number | null;
+  sexualPreference: string | null;
   grupos: number[];
 }
 
@@ -116,6 +117,8 @@ export async function POST(request: Request) {
             firstName: p.firstName,
             lastName: p.lastName,
             gender: p.gender,
+            age: p.age ?? null,
+            sexualPreference: p.sexualPreference ?? null,
             phone: normalizePhone(p.phone),
             selectedDrink: p.selectedDrink || 'Sin especificar',
             eventId,

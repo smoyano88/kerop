@@ -25,6 +25,7 @@ Reglas:
 - Si no aparece celular, usá null
 - Si no aparece bebida, usá "Sin especificar"
 - Si no aparece edad, usá null
+- Si aparece la preferencia sexual del participante (ej: "hetero", "heterosexual", "gay", "homosexual", "bi", "bisexual"), normalizala a "Heterosexual", "Homosexual" o "Bisexual"; si no aparece, usá null
 
 Devolvé ÚNICAMENTE un JSON válido con esta estructura, sin texto adicional ni markdown:
 {
@@ -36,6 +37,7 @@ Devolvé ÚNICAMENTE un JSON válido con esta estructura, sin texto adicional ni
       "phone": "string o null",
       "selectedDrink": "string",
       "age": number o null,
+      "sexualPreference": "Heterosexual, Homosexual, Bisexual o null",
       "grupos": [number, ...]
     }
   ],

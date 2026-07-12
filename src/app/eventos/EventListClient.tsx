@@ -254,6 +254,8 @@ function RegistrationModal({ event, onClose }: { event: Event, onClose: () => vo
       phone,
       instagram: instagram.startsWith('@') ? instagram : `@${instagram}`,
       gender: formData.get('gender'),
+      age: formData.get('age'),
+      sexualPreference: formData.get('sexualPreference'),
       selectedDrink: formData.get('selectedDrink'),
       eventId: event.id,
       paymentMethod
@@ -384,6 +386,25 @@ function RegistrationModal({ event, onClose }: { event: Event, onClose: () => vo
               <div>
                 <label className="input-label">Email <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>(opcional)</span></label>
                 <input type="email" name="email" className="input-field" placeholder="tu@email.com" />
+              </div>
+            </div>
+
+            {/* Fila: Edad + Preferencia sexual */}
+            <div className="form-row-2">
+              <div>
+                <label className="input-label">Edad</label>
+                <input type="number" name="age" required min={18} max={99} className="input-field" placeholder="Ej: 28" />
+              </div>
+              <div>
+                <label className="input-label">Preferencia sexual</label>
+                <select name="sexualPreference" required defaultValue="" className="input-field" style={{ appearance: 'none', backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'white\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpolyline points=\'6 9 12 15 18 9\'%3E%3C/polyline%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', paddingRight: '3rem' }}>
+                  <option value="" disabled>Seleccioná una opción...</option>
+                  <option value="Heterosexual" style={{ background: '#000', color: '#fff' }}>Heterosexual</option>
+                  <option value="Homosexual" style={{ background: '#000', color: '#fff' }}>Homosexual</option>
+                  <option value="Bisexual" style={{ background: '#000', color: '#fff' }}>Bisexual</option>
+                  <option value="Otra" style={{ background: '#000', color: '#fff' }}>Otra</option>
+                  <option value="Prefiero no decir" style={{ background: '#000', color: '#fff' }}>Prefiero no decir</option>
+                </select>
               </div>
             </div>
 

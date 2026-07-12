@@ -244,7 +244,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
   };
 
   // Scan cuaderno state
-  interface ScannedParticipante { firstName: string; lastName: string; gender: 'Hombre' | 'Mujer'; phone: string | null; selectedDrink: string; age: number | null; grupos: number[]; }
+  interface ScannedParticipante { firstName: string; lastName: string; gender: 'Hombre' | 'Mujer'; phone: string | null; selectedDrink: string; age: number | null; sexualPreference: string | null; grupos: number[]; }
   interface ScannedEvento { groupNumber: number; ageRange: string; date: string; type: string; }
   const [scanOpen, setScanOpen] = useState(false);
   const [scanLoading, setScanLoading] = useState(false);
@@ -2718,7 +2718,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', minWidth: '480px' }}>
                           <thead>
                             <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)' }}>
-                              {['Nombre', 'Género', 'Teléfono', 'Bebida', 'Grupos'].map(h => (
+                              {['Nombre', 'Género', 'Edad', 'Pref.', 'Teléfono', 'Bebida', 'Grupos'].map(h => (
                                 <th key={h} style={{ textAlign: 'left', padding: '0.5rem 0.75rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
                               ))}
                             </tr>
@@ -2728,6 +2728,8 @@ export default function AdminClient({ events }: { events: Event[] }) {
                               <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                                 <td style={{ padding: '0.6rem 0.75rem', color: 'white', whiteSpace: 'nowrap' }}>{p.firstName} {p.lastName}</td>
                                 <td style={{ padding: '0.6rem 0.75rem', color: p.gender === 'Mujer' ? 'var(--neon-pink)' : 'var(--neon-cyan)', whiteSpace: 'nowrap' }}>{p.gender}</td>
+                                <td style={{ padding: '0.6rem 0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{p.age ?? '—'}</td>
+                                <td style={{ padding: '0.6rem 0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{p.sexualPreference || '—'}</td>
                                 <td style={{ padding: '0.6rem 0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{p.phone || '—'}</td>
                                 <td style={{ padding: '0.6rem 0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{p.selectedDrink || '—'}</td>
                                 <td style={{ padding: '0.6rem 0.75rem' }}>
@@ -2749,6 +2751,8 @@ export default function AdminClient({ events }: { events: Event[] }) {
                             </div>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', fontSize: '0.8rem', alignItems: 'center' }}>
                               <span style={{ color: 'var(--text-muted)' }}>{p.gender === 'Mujer' ? '👩' : '👨'} {p.gender}</span>
+                              {p.age != null && <span style={{ color: 'var(--text-muted)' }}>🎂 {p.age}</span>}
+                              {p.sexualPreference && <span style={{ color: 'var(--text-muted)' }}>💗 {p.sexualPreference}</span>}
                               {p.phone && <span style={{ color: 'var(--text-muted)' }}>📱 {p.phone}</span>}
                               {p.selectedDrink && <span style={{ color: 'var(--text-muted)' }}>🍹 {p.selectedDrink}</span>}
                               <span style={{ marginLeft: 'auto', display: 'flex', gap: '0.25rem' }}>

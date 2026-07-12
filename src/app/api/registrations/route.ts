@@ -42,6 +42,8 @@ export async function POST(request: Request) {
       firstName,
       lastName,
       gender,
+      age,
+      sexualPreference,
       selectedDrink,
       eventId,
       paymentMethod,
@@ -49,6 +51,20 @@ export async function POST(request: Request) {
       phone,
       instagram,
     } = body;
+
+    const parsedAge = parseInt(age, 10);
+    if (isNaN(parsedAge) || parsedAge < 18 || parsedAge > 99) {
+      return NextResponse.json(
+        { error: 'Ingresá una edad válida (18 a 99 años).' },
+        { status: 400 },
+      );
+    }
+    if (!sexualPreference) {
+      return NextResponse.json(
+        { error: 'Seleccioná tu preferencia sexual.' },
+        { status: 400 },
+      );
+    }
 
     if (!phone && !email && !instagram) {
       return NextResponse.json(
@@ -119,6 +135,8 @@ export async function POST(request: Request) {
             firstName,
             lastName,
             gender,
+            age: parsedAge,
+            sexualPreference,
             selectedDrink,
             event: { connect: { id: eventId } },
             eventType: ev.type,

@@ -35,6 +35,8 @@ model Registration {
   firstName       String
   lastName        String
   gender          String
+  age             Int?
+  sexualPreference String?
   email           String?
   phone           String?
   instagram       String?
