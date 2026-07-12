@@ -25,6 +25,7 @@ Reglas:
 - Si no aparece celular, usá null
 - Si no aparece bebida, usá "Sin especificar"
 - Si no aparece edad, usá null
+- La edad del participante es el número junto a su nombre (ej: "Sergio Moyano 37 años"). OJO con el manuscrito: un 7 escrito a mano (a veces con barra horizontal cruzada) puede parecer un 4 — mirá el trazo con cuidado. Un 7 tiene el tope horizontal largo arriba; un 4 tiene un trazo vertical que baja y cruza. Ante la duda, compará con otros dígitos de la misma página (teléfono, grupos) para ver cómo escribe los 7 y los 4 esa persona
 - Preferencia sexual: en el cuaderno suele estar anotada como A QUIÉN BUSCA el participante (ej: "mujeres", "hombres", "hombres y mujeres", "ambos"). Deducila cruzando con el género del participante:
   * Hombre que busca "mujeres" → "Heterosexual"
   * Hombre que busca "hombres" → "Homosexual"
