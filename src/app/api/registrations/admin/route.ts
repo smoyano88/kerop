@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { verifyAdminPassword } from '@/lib/auth';
 import { isReservationActive } from '@/lib/reservations';
+import { runSerializable } from '@/lib/serializableTx';
 
 // Endpoint dedicado para que el admin agregue manualmente un participante a un evento.
 // Diferencias vs el endpoint público:
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     }
 
     try {
-      const reg = await prisma.$transaction(async (tx) => {
+      const reg = await runSerializable(async (tx) => {
         const ev = await tx.event.findUnique({
           where: { id: eventId },
           include: { registrations: true },

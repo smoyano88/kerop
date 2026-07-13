@@ -7,11 +7,18 @@ import {
 } from "@/lib/mercadopago";
 import { isReservationActive } from "@/lib/reservations";
 import { normalizePhone } from "@/lib/phone";
+import { verifyAdminPassword } from "@/lib/auth";
+import { runSerializable } from "@/lib/serializableTx";
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const eventId = searchParams.get("eventId");
+    const password = searchParams.get("password");
+
+    if (!(await verifyAdminPassword(password))) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
 
     if (eventId) {
       const registrations = await prisma.registration.findMany({
@@ -80,7 +87,7 @@ export async function POST(request: Request) {
     let event: NonNullable<Awaited<ReturnType<typeof prisma.event.findUnique>>>;
 
     try {
-      const result = await prisma.$transaction(async (tx) => {
+      const result = await runSerializable(async (tx) => {
         const ev = await tx.event.findUnique({
           where: { id: eventId },
           include: { registrations: true },

@@ -47,11 +47,19 @@ export async function PATCH(
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    const updated = await prisma.registration.update({
-      where: { id },
-      data: { paid: true, paymentId: 'transferencia-manual' },
-      include: { event: true }
-    });
+    let updated;
+    try {
+      updated = await prisma.registration.update({
+        where: { id },
+        data: { paid: true, paymentId: 'transferencia-manual' },
+        include: { event: true },
+      });
+    } catch (e: any) {
+      if (e?.code === 'P2025') {
+        return NextResponse.json({ error: 'Inscripción no encontrada' }, { status: 404 });
+      }
+      throw e;
+    }
 
     // Notificaciones de Pago Confirmado Manualmente
     try {

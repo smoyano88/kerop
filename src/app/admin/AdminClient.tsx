@@ -365,7 +365,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
   const loadParticipants = async () => {
     setParticipantsLoading(true);
     try {
-      const regs: RegistrationWithEvent[] = await fetch('/api/registrations').then(r => r.json());
+      const regs: RegistrationWithEvent[] = await fetch(`/api/registrations?password=${encodeURIComponent(currentAdminPassword)}`).then(r => r.json());
       setAllRegistrations(regs);
 
       // Usamos eventId vivo o archivado para no perder agrupación tras eliminar evento

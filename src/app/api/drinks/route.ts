@@ -38,7 +38,10 @@ export async function DELETE(request: Request) {
     }
     await prisma.drink.delete({ where: { id } });
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (e: any) {
+    if (e?.code === 'P2025') {
+      return NextResponse.json({ error: 'Trago no encontrado' }, { status: 404 });
+    }
     return NextResponse.json({ error: 'Error eliminando trago' }, { status: 500 });
   }
 }

@@ -49,7 +49,10 @@ export async function PUT(request: Request) {
       data: { category, name, description, price: Number(price), imageUrl, order, available },
     });
     return NextResponse.json(item);
-  } catch {
+  } catch (e: any) {
+    if (e?.code === 'P2025') {
+      return NextResponse.json({ error: 'Item no encontrado' }, { status: 404 });
+    }
     return NextResponse.json({ error: 'Error actualizando item' }, { status: 500 });
   }
 }
@@ -62,7 +65,10 @@ export async function DELETE(request: Request) {
     }
     await prisma.menuItem.delete({ where: { id } });
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (e: any) {
+    if (e?.code === 'P2025') {
+      return NextResponse.json({ error: 'Item no encontrado' }, { status: 404 });
+    }
     return NextResponse.json({ error: 'Error eliminando item' }, { status: 500 });
   }
 }
