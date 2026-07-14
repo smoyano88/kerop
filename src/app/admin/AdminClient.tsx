@@ -3142,7 +3142,7 @@ export default function AdminClient({ events }: { events: Event[] }) {
                 </div>
                 <button
                   onClick={async () => {
-                    if (!window.confirm('¿Cargar los 40 grupos históricos en la base de datos? Los que ya existen se saltean.')) return;
+                    if (!window.confirm('¿Cargar los 44 grupos históricos en la base de datos? Los que ya existen se saltean.')) return;
                     try {
                       const res = await fetch('/api/seed-events', {
                         method: 'POST',
